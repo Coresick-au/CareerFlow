@@ -1,0 +1,44 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "CareerFlow",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": false,
+      "targets": "all",
+      "identifier": "com.careerflow.app",
+      "icon": []
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "CareerFlow",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ]
+  }
+}
