@@ -1,60 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import { CompensationRecord, OvertimeFrequency, PayType, AllowanceFrequency } from '../../types';
-import { Slider } from '../ui/slider';
-import { Label } from '../ui/label';
+import React, { useState } from 'react';
+import { CompensationRecord, CompensationEntryType, PayType, OvertimeFrequency, AllowanceFrequency } from '../../types';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Slider } from '../ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Trash2 } from 'lucide-react';
 
 interface FuzzyCompensationFormProps {
-  record?: CompensationRecord | null;
+  initialData?: CompensationRecord | null;
   onSave: (record: CompensationRecord) => void;
   onCancel: () => void;
+  onDelete?: (id: number) => void;
+  isSaving?: boolean;
 }
 
-export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompensationFormProps) {
-  const [payType, setPayType] = useState<PayType>('Salary');
-  const [baseRate, setBaseRate] = useState(record?.base_rate || 100000);
-  const [standardHours, setStandardHours] = useState(record?.standard_weekly_hours || 38);
-  const [overtimeFrequency, setOvertimeFrequency] = useState<OvertimeFrequency>('Occasional');
-  const [overtimeHours, setOvertimeHours] = useState(record?.overtime.average_hours_per_week || 5);
-  const [allowances, setAllowances] = useState(5000);
-  const [superRate, setSuperRate] = useState(record?.super_contributions.contribution_rate || 11);
-  const [effectiveDate, setEffectiveDate] = useState(
-    record?.effective_date || new Date().toISOString().split('T')[0]
-  );
+export function FuzzyCompensationForm({ initialData, onSave, onCancel, onDelete, isSaving }: FuzzyCompensationFormProps) {
+  const [payType, setPayType] = useState<PayType>(initialData?.pay_type || PayType.Salary);
+  const [baseRate, setBaseRate] = useState(initialData?.base_rate || (initialData?.pay_type === PayType.Salary ? 90000 : 45));
+  const [standardHours, setStandardHours] = useState(initialData?.standard_weekly_hours || 38);
 
-  // Calculate confidence score based on specificity
-  const [confidenceScore, setConfidenceScore] = useState(75);
+  const [overtimeFrequency, setOvertimeFrequency] = useState<OvertimeFrequency>(initialData?.overtime?.frequency || OvertimeFrequency.None);
+  const [overtimeHours, setOvertimeHours] = useState(initialData?.overtime?.average_hours_per_week || 0);
 
-  useEffect(() => {
-    let score = 100;
-    
-    // Reduce score for estimates
-    if (payType === 'Salary' && baseRate % 5000 === 0) score -= 10;
-    if (overtimeFrequency === 'Occasional') score -= 15;
-    if (allowances % 1000 === 0) score -= 10;
-    
-    setConfidenceScore(Math.max(score, 50));
-  }, [payType, baseRate, overtimeFrequency, allowances]);
+  // Extract allowance amount if it exists (assuming single estimate allowance for fuzzy)
+  const initialAllowanceAmount = initialData?.allowances?.[0]?.amount || 0;
+  const [allowances, setAllowances] = useState(initialAllowanceAmount);
+
+  const [superRate, setSuperRate] = useState(initialData?.super_contributions?.contribution_rate || 11.5);
+  const [effectiveDate, setEffectiveDate] = useState(initialData?.effective_date ? new Date(initialData.effective_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+
+  // Derived confidence score based on input granularity
+  const calculateConfidence = () => {
+    let score = 60; // Base score for estimate
+    if (payType === PayType.Hourly) score += 10;
+    if (overtimeFrequency !== OvertimeFrequency.None && overtimeHours > 0) score += 5;
+    if (allowances > 0) score += 5;
+    return Math.min(score, 90); // Cap at 90% for estimates
+  };
+
+  const confidenceScore = calculateConfidence();
 
   const calculateEstimatedAnnual = () => {
-    const baseAnnual = payType === 'Salary' 
-      ? baseRate 
+    const baseAnnual = payType === PayType.Salary
+      ? baseRate
       : baseRate * standardHours * 52;
-    
-    const overtimeMultiplier = {
-      'None': 0,
-      'Occasional': 0.5,
-      'Frequent': 1.0,
-      'Extreme': 1.5,
-    }[overtimeFrequency] || 0;
-    
-    const overtimeAnnual = overtimeHours * 1.5 * baseRate * overtimeMultiplier * 52;
+
+
+
+    // If hours are explicitly set, use them. Otherwise imply from frequency? 
+    // The previous code used multiplier relative to base rate? 
+    // Let's assume overtimeHours is the weekly average.
+    const overtimeAnnual = overtimeHours * 1.5 * (payType === PayType.Hourly ? baseRate : baseRate / (38 * 52)) * 52;
+
+    // Allowances are annual
     const allowancesAnnual = allowances;
-    
+
     return {
       base: baseAnnual,
       overtime: overtimeAnnual,
@@ -65,13 +68,11 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const earnings = calculateEstimatedAnnual();
-    
+
     const compensationRecord: CompensationRecord = {
-      id: record?.id,
+      id: initialData?.id,
       position_id: 0, // Will be set by parent
-      entry_type: 'Fuzzy',
+      entry_type: CompensationEntryType.Fuzzy,
       pay_type: payType,
       base_rate: baseRate,
       standard_weekly_hours: standardHours,
@@ -79,13 +80,13 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
         frequency: overtimeFrequency,
         rate_multiplier: 1.5,
         average_hours_per_week: overtimeHours,
-        annual_hours: null,
+        annual_hours: undefined,
       },
       allowances: [
         {
           name: 'Estimated Allowances',
           amount: allowances,
-          frequency: 'Annually' as AllowanceFrequency,
+          frequency: AllowanceFrequency.Annually,
           taxable: true,
         }
       ],
@@ -95,11 +96,11 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
         additional_contributions: 0,
         salary_sacrifice: 0,
       },
-      payslip_frequency: null,
+      payslip_frequency: undefined,
       effective_date: new Date(effectiveDate),
       confidence_score: confidenceScore,
       notes: `Fuzzy estimate - ${confidenceScore}% confidence`,
-      created_at: new Date(),
+      created_at: initialData?.created_at || new Date(),
     };
 
     onSave(compensationRecord);
@@ -138,15 +139,15 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Salary">Annual Salary</SelectItem>
-                <SelectItem value="Hourly">Hourly Rate</SelectItem>
+                <SelectItem value={PayType.Salary}>Annual Salary</SelectItem>
+                <SelectItem value={PayType.Hourly}>Hourly Rate</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
             <Label>
-              Base {payType === 'Salary' ? 'Salary' : 'Hourly Rate'}
+              Base {payType === PayType.Salary ? 'Salary' : 'Hourly Rate'}
               <span className="text-sm text-gray-500 ml-2">
                 (Use round numbers for quick estimate)
               </span>
@@ -155,20 +156,20 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
               <Slider
                 value={[baseRate]}
                 onValueChange={(value) => setBaseRate(value[0])}
-                min={payType === 'Salary' ? 50000 : 25}
-                max={payType === 'Salary' ? 300000 : 150}
-                step={payType === 'Salary' ? 5000 : 5}
+                min={payType === PayType.Salary ? 50000 : 25}
+                max={payType === PayType.Salary ? 300000 : 150}
+                step={payType === PayType.Salary ? 5000 : 5}
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-1">
-                <span>{formatCurrency(payType === 'Salary' ? 50000 : 25)}</span>
+                <span>{formatCurrency(payType === PayType.Salary ? 50000 : 25)}</span>
                 <span className="font-medium">{formatCurrency(baseRate)}</span>
-                <span>{formatCurrency(payType === 'Salary' ? 300000 : 150)}</span>
+                <span>{formatCurrency(payType === PayType.Salary ? 300000 : 150)}</span>
               </div>
             </div>
           </div>
 
-          {payType === 'Hourly' && (
+          {payType === PayType.Hourly && (
             <div>
               <Label>Standard Weekly Hours</Label>
               <Input
@@ -197,15 +198,15 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="None">Never</SelectItem>
-                <SelectItem value="Occasional">Occasional (1-2 days/month)</SelectItem>
-                <SelectItem value="Frequent">Frequent (1-2 days/week)</SelectItem>
-                <SelectItem value="Extreme">Extreme (3+ days/week)</SelectItem>
+                <SelectItem value={OvertimeFrequency.None}>Never</SelectItem>
+                <SelectItem value={OvertimeFrequency.Occasional}>Occasional (1-2 days/month)</SelectItem>
+                <SelectItem value={OvertimeFrequency.Frequent}>Frequent (1-2 days/week)</SelectItem>
+                <SelectItem value={OvertimeFrequency.Extreme}>Extreme (3+ days/week)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {overtimeFrequency !== 'None' && (
+          {overtimeFrequency !== OvertimeFrequency.None && (
             <div>
               <Label>Average overtime hours per week</Label>
               <div className="mt-2">
@@ -311,13 +312,33 @@ export function FuzzyCompensationForm({ record, onSave, onCancel }: FuzzyCompens
       </Card>
 
       {/* Actions */}
-      <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit">
-          Save Estimate
-        </Button>
+      <div className="flex justify-between space-x-2 pt-4">
+        {initialData?.id ? (
+          <Button
+            type="button"
+            variant="destructive"
+            className="mr-auto"
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this estimate?')) {
+                onDelete?.(initialData.id!);
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete
+          </Button>
+        ) : <div />}
+
+        <div className="flex space-x-2">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Estimate'}
+          </Button>
+        </div>
       </div>
     </form>
   );

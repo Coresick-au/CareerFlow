@@ -61,6 +61,32 @@ async fn save_compensation_record(record: CompensationRecord, state: State<'_, A
 }
 
 #[tauri::command]
+async fn delete_compensation_record(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.delete_compensation_record(id).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_weekly_entries(state: State<'_, AppState>) -> Result<Vec<WeeklyCompensationEntry>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    Ok(db.get_weekly_entries())
+}
+
+#[tauri::command]
+async fn save_weekly_entry(entry: WeeklyCompensationEntry, state: State<'_, AppState>) -> Result<i64, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    Ok(db.save_weekly_entry(entry).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+async fn delete_weekly_entry(id: i64, state: State<'_, AppState>) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    db.delete_weekly_entry(id).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 async fn calculate_earnings_analysis(state: State<'_, AppState>) -> Result<EarningsAnalysis, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let positions = db.get_positions();
@@ -99,7 +125,12 @@ fn main() {
             save_compensation_record,
             calculate_earnings_analysis,
             calculate_loyalty_tax,
-            generate_resume_export
+            calculate_earnings_analysis,
+            calculate_loyalty_tax,
+            generate_resume_export,
+            get_weekly_entries,
+            save_weekly_entry,
+            delete_weekly_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

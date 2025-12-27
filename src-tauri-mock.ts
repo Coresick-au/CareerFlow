@@ -110,14 +110,42 @@ export interface EarningsAnalysis {
 }
 
 // Mock data storage - now supports multiple users
-let mockProfiles: Record<string, any> = {};
-let mockPositions: Record<string, any[]> = {};
-let mockCompensation: Record<string, any[]> = {};
-
 // Helper to get current user ID from window context
 function getCurrentUserId(): string {
   return (typeof window !== 'undefined' && (window as any).__currentUserId) || 'default';
 }
+
+// Persist data helper
+function saveToStorage() {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('careerflow_profiles', JSON.stringify(mockProfiles));
+  localStorage.setItem('careerflow_positions', JSON.stringify(mockPositions));
+  localStorage.setItem('careerflow_compensation', JSON.stringify(mockCompensation));
+}
+
+// Load data helper
+function loadFromStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    const profiles = localStorage.getItem('careerflow_profiles');
+    const positions = localStorage.getItem('careerflow_positions');
+    const compensation = localStorage.getItem('careerflow_compensation');
+
+    if (profiles) mockProfiles = JSON.parse(profiles);
+    if (positions) mockPositions = JSON.parse(positions);
+    if (compensation) mockCompensation = JSON.parse(compensation);
+  } catch (e) {
+    console.error('Failed to load mock data from storage', e);
+  }
+}
+
+// Mock data storage - now supports multiple users
+let mockProfiles: Record<string, any> = {};
+let mockPositions: Record<string, any[]> = {};
+let mockCompensation: Record<string, any[]> = {};
+
+// Load immediately if in browser
+loadFromStorage();
 
 // Helper to get user-specific data
 function getUserData() {
@@ -135,6 +163,7 @@ function setUserData(data: { profile?: any; positions?: any[]; compensation?: an
   if (data.profile !== undefined) mockProfiles[userId] = data.profile;
   if (data.positions !== undefined) mockPositions[userId] = data.positions;
   if (data.compensation !== undefined) mockCompensation[userId] = data.compensation;
+  saveToStorage();
 }
 
 // Sample data for testing
@@ -376,128 +405,215 @@ const sampleCompensation: CompensationRecord[] = [
 // Mock Tauri invoke function
 export async function invoke<T>(command: string, args?: any): Promise<T> {
   console.log(`Mock Tauri invoke: ${command}`, args);
-  
+
   switch (command) {
     case 'get_user_profile':
       return getUserData().profile as T;
-      
+
     case 'save_user_profile':
-      setUserData({ 
-        profile: { 
-          ...args, 
-          id: 1, 
-          created_at: new Date(), 
-          updated_at: new Date() 
+      const profileData = args?.profile || args;
+      setUserData({
+        profile: {
+          ...profileData,
+          id: 1,
+          created_at: new Date(),
+          updated_at: new Date()
         }
       });
       return undefined as T;
-      
+
     case 'get_positions':
       return getUserData().positions as T;
-      
+
     case 'save_position':
       const currentData = getUserData();
-      const newPosition = { ...args, id: Date.now(), created_at: new Date(), updated_at: new Date() };
-      setUserData({ positions: [...currentData.positions, newPosition] });
-      return newPosition.id as T;
-      
+      const posArgs = args as Position;
+      if (posArgs.id) {
+        // Update
+        setUserData({
+          positions: currentData.positions.map(p => p.id === posArgs.id ? { ...p, ...posArgs, updated_at: new Date() } : p)
+        });
+        return posArgs.id as T;
+      } else {
+        // Create
+        const newPosition = { ...posArgs, id: Date.now(), created_at: new Date(), updated_at: new Date() };
+        setUserData({ positions: [...currentData.positions, newPosition] });
+        return newPosition.id as T;
+      }
+
     case 'delete_position':
       const posData = getUserData();
-      setUserData({ 
-        positions: posData.positions.filter(p => p.id !== args) 
+      setUserData({
+        positions: posData.positions.filter(p => p.id !== args)
       });
       return undefined as T;
-      
+
     case 'get_compensation_records':
       const compData = getUserData();
       return compData.compensation.filter(c => c.position_id === args) as T;
-      
+
+    case 'get_all_compensation_records':
+      return getUserData().compensation as T;
+
     case 'save_compensation_record':
       const compCurrent = getUserData();
-      const newRecord = { ...args, id: Date.now(), created_at: new Date() };
-      setUserData({ 
-        compensation: [...compCurrent.compensation, newRecord] 
+      const compArgs = args as CompensationRecord;
+      if (compArgs.id) {
+        // Update
+        setUserData({
+          compensation: compCurrent.compensation.map(c => c.id === compArgs.id ? { ...c, ...compArgs } : c)
+        });
+        return compArgs.id as T;
+      } else {
+        // Create
+        const newRecord = { ...compArgs, id: Date.now(), created_at: new Date() };
+        setUserData({
+          compensation: [...compCurrent.compensation, newRecord]
+        });
+        return newRecord.id as T;
+      }
+
+    case 'delete_compensation_record':
+      const compDataDel = getUserData();
+      setUserData({
+        compensation: compDataDel.compensation.filter(c => c.id !== args)
       });
-      return newRecord.id as T;
-      
+      return undefined as T;
+
     case 'calculate_earnings_analysis':
       // Calculate earnings from actual data
       const userCompData = getUserData();
-      const currentCompensation = userCompData.compensation.find((c: any) => c.position_id === 4); // Current position
-      const totalCompensation = currentCompensation ? 
-        currentCompensation.base_rate + 
+
+      // Return null if no data exists
+      if (!userCompData.compensation || userCompData.compensation.length === 0) {
+        return null as T;
+      }
+
+      const currentCompensation = userCompData.compensation[userCompData.compensation.length - 1]; // Latest position
+      const totalCompensation = currentCompensation ?
+        currentCompensation.base_rate +
         (currentCompensation.allowances.reduce((sum: number, a: any) => sum + (a.frequency === 'Monthly' ? a.amount * 12 : a.frequency === 'Annually' ? a.amount : 0), 0)) +
         (currentCompensation.bonuses.reduce((sum: number, b: any) => sum + b.amount, 0) / 2) : // Average annual bonus
-        140000;
-      
+        0;
+
       const standardHours = currentCompensation ? currentCompensation.standard_weekly_hours * 52 : 1976;
-      const overtimeHours = currentCompensation ? currentCompensation.overtime.annual_hours || 0 : 156;
+      const overtimeHours = currentCompensation ? currentCompensation.overtime.annual_hours || 0 : 0;
       const totalHours = standardHours + overtimeHours;
-      const effectiveHourlyRate = totalCompensation / totalHours;
-      
+      const effectiveHourlyRate = totalHours > 0 ? totalCompensation / totalHours : 0;
+
       // Calculate earnings progression from compensation records
-      const earningsOverTime = userCompData.compensation.map((c: any) => ({
-        date: new Date(c.effective_date),
-        base_annual: c.base_rate,
-        actual_annual: c.base_rate + 
-          (c.allowances.reduce((sum: number, a: any) => sum + (a.frequency === 'Monthly' ? a.amount * 12 : a.frequency === 'Annually' ? a.amount : 0), 0)) +
-          (c.bonuses.reduce((sum: number, b: any) => sum + b.amount, 0)),
-        total_with_super: c.base_rate * (1 + c.super_contributions.contribution_rate / 100) + 
-          c.super_contributions.additional_contributions + c.super_contributions.salary_sacrifice,
-        effective_hourly_rate: c.base_rate / (c.standard_weekly_hours * 52 + (c.overtime.annual_hours || 0))
-      }));
+      // Calculate earnings progression from compensation records
+      const earningsOverTime = userCompData.compensation.map((c: any) => {
+        const annualAllowances = c.allowances.reduce((sum: number, a: any) => sum + (a.frequency === 'Monthly' ? a.amount * 12 : a.frequency === 'Annually' ? a.amount : a.amount * 52), 0);
+        const annualBonus = c.bonuses.reduce((sum: number, b: any) => sum + b.amount, 0);
+
+        return {
+          date: new Date(c.effective_date),
+          base_annual: (c.pay_type === 'Hourly' || c.pay_type === 'Weekly') ? c.base_rate * 52 : c.base_rate,
+          actual_annual: ((c.pay_type === 'Hourly' || c.pay_type === 'Weekly') ? c.base_rate * 52 : c.base_rate) + annualAllowances + annualBonus,
+          total_with_super: ((c.pay_type === 'Hourly' || c.pay_type === 'Weekly') ? c.base_rate * 52 : c.base_rate) * (1 + c.super_contributions.contribution_rate / 100) +
+            c.super_contributions.additional_contributions + c.super_contributions.salary_sacrifice,
+          effective_hourly_rate: c.base_rate / (c.standard_weekly_hours * 52 + (c.overtime.annual_hours || 0)),
+          bonuses_annual: annualBonus,
+          allowances_annual: annualAllowances
+        };
+      });
+
+      // Calculate dynamic hours vs earnings
+      const hoursVsEarningsMap = new Map<number, { total_hours: number, total_earnings: number, overtime_hours: number }>();
+
+      userCompData.compensation.forEach((c: any) => {
+        const year = new Date(c.effective_date).getFullYear();
+        const existing = hoursVsEarningsMap.get(year) || { total_hours: 0, total_earnings: 0, overtime_hours: 0 };
+
+        const weeksActive = 52;
+        const weeklyHours = c.standard_weekly_hours + (c.overtime?.average_hours_per_week || 0);
+        const annualHours = weeklyHours * weeksActive + (c.overtime?.annual_hours || 0);
+
+        // Correct annual calculation
+        const annualBase = (c.pay_type === 'Hourly' || c.pay_type === 'Weekly') ? c.base_rate * 52 : c.base_rate;
+
+        const annualAllowances = c.allowances.reduce((sum: number, a: any) => sum + (a.frequency === 'Monthly' ? a.amount * 12 : a.frequency === 'Annually' ? a.amount : a.amount * 52), 0);
+        const annualBonus = c.bonuses.reduce((sum: number, b: any) => sum + b.amount, 0);
+
+        existing.total_hours += annualHours;
+        existing.total_earnings += annualBase + annualAllowances + annualBonus;
+        existing.overtime_hours += (c.overtime?.average_hours_per_week || 0) * 52 + (c.overtime?.annual_hours || 0);
+
+        hoursVsEarningsMap.set(year, existing);
+      });
+
+      const hoursVsEarnings = Array.from(hoursVsEarningsMap.entries()).map(([year, data]) => ({
+        year,
+        total_hours_worked: Math.round(data.total_hours),
+        total_earnings: Math.round(data.total_earnings),
+        overtime_percentage: data.total_hours > 0 ? Math.round((data.overtime_hours / data.total_hours) * 100) : 0
+      })).sort((a, b) => a.year - b.year);
+
+      // Calculate super trajectory
+      const superMap = new Map<string, { employer: number, personal: number, balance: number }>();
+      let runningBalance = 0;
+
+      const sortedComp = [...userCompData.compensation].sort((a: any, b: any) => new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime());
+
+      sortedComp.forEach((c: any) => {
+        const startYear = new Date(c.effective_date).getFullYear();
+        const month = new Date(c.effective_date).getMonth(); // 0-11
+        const fyStartYear = month >= 6 ? startYear : startYear - 1;
+        const fy = `FY${fyStartYear}-${(fyStartYear + 1).toString().slice(-2)}`;
+
+        const existing = superMap.get(fy) || { employer: 0, personal: 0, balance: 0 };
+
+        const annualBase = (c.pay_type === 'Hourly' || c.pay_type === 'Weekly') ? c.base_rate * 52 : c.base_rate;
+        const employerCont = annualBase * (c.super_contributions.contribution_rate / 100) + c.super_contributions.additional_contributions;
+        const personalCont = c.super_contributions.salary_sacrifice;
+
+        existing.employer += employerCont;
+        existing.personal += personalCont;
+        runningBalance += employerCont + personalCont;
+        existing.balance = runningBalance;
+
+        superMap.set(fy, existing);
+      });
+
+      const superTrajectory = Array.from(superMap.entries()).map(([financial_year, data]) => ({
+        financial_year,
+        employer_contributions: Math.round(data.employer),
+        personal_contributions: Math.round(data.personal),
+        total_super_balance: Math.round(data.balance)
+      })).sort((a, b) => parseInt(a.financial_year.substring(2, 6)) - parseInt(b.financial_year.substring(2, 6)));
+
+      // Generate dynamic insights
+      const insightsArray: any[] = [];
+      if (hoursVsEarnings.length > 1) {
+        const first = hoursVsEarnings[0];
+        const last = hoursVsEarnings[hoursVsEarnings.length - 1];
+        const growth = first.total_earnings > 0 ? ((last.total_earnings - first.total_earnings) / first.total_earnings) * 100 : 0;
+
+        insightsArray.push({
+          category: 'CareerProgression',
+          title: `Career Growth: ${Math.round(growth)}% increase`,
+          description: `You have grown your earnings from $${(first.total_earnings / 1000).toFixed(1)}k to $${(last.total_earnings / 1000).toFixed(1)}k over ${hoursVsEarnings.length} years.`,
+          confidence_level: 90,
+          data_points: [`Started: $${(first.total_earnings / 1000).toFixed(0)}k`, `Current: $${(last.total_earnings / 1000).toFixed(0)}k`]
+        });
+      }
 
       return {
         current_total_compensation: totalCompensation,
         current_effective_hourly_rate: effectiveHourlyRate,
-        income_percentile: 78, // Based on $140k total comp for senior dev in Sydney
-        loyalty_tax_annual: 6000,
-        loyalty_tax_cumulative: 18000,
+        current_weekly_hours: currentCompensation ? currentCompensation.standard_weekly_hours + (currentCompensation.overtime?.average_hours_per_week || 0) : 38,
+        income_percentile: 78,
+        loyalty_tax_annual: 0,
+        loyalty_tax_cumulative: 0,
+        years_since_last_change: 2, // simplified
         earnings_over_time: earningsOverTime,
-        hours_vs_earnings: [
-          { year: 2017, total_hours_worked: 1976, total_earnings: 77000, overtime_percentage: 0 },
-          { year: 2018, total_hours_worked: 1976, total_earnings: 77000, overtime_percentage: 0 },
-          { year: 2019, total_hours_worked: 2080, total_earnings: 95000, overtime_percentage: 5 },
-          { year: 2020, total_hours_worked: 2080, total_earnings: 95000, overtime_percentage: 5 },
-          { year: 2021, total_hours_worked: 2184, total_earnings: 108000, overtime_percentage: 5 },
-          { year: 2022, total_hours_worked: 2296, total_earnings: 135000, overtime_percentage: 10 },
-          { year: 2023, total_hours_worked: 2296, total_earnings: 135000, overtime_percentage: 10 },
-          { year: 2024, total_hours_worked: 2244, total_earnings: 158000, overtime_percentage: 8 }
-        ],
-        super_trajectory: [
-          { financial_year: '2017-18', employer_contributions: 6175, personal_contributions: 0, total_super_balance: 6175 },
-          { financial_year: '2018-19', employer_contributions: 6175, personal_contributions: 0, total_super_balance: 13000 },
-          { financial_year: '2019-20', employer_contributions: 8075, personal_contributions: 5000, total_super_balance: 26075 },
-          { financial_year: '2020-21', employer_contributions: 8075, personal_contributions: 5000, total_super_balance: 39150 },
-          { financial_year: '2021-22', employer_contributions: 10260, personal_contributions: 5000, total_super_balance: 54410 },
-          { financial_year: '2022-23', employer_contributions: 12600, personal_contributions: 10000, total_super_balance: 77010 },
-          { financial_year: '2023-24', employer_contributions: 15400, personal_contributions: 15000, total_super_balance: 107410 }
-        ],
-        insights: [
-          {
-            category: 'CareerProgression',
-            title: 'Strong career growth: 115% salary increase over 7 years',
-            description: 'Your career progression from graduate to senior developer shows above-average growth with strategic job changes every 2-3 years.',
-            confidence_level: 95,
-            data_points: ['Started: $65k (2017)', 'Current: $140k (2024)', '4 positions, 3 employers']
-          },
-          {
-            category: 'SuperHealth',
-            title: 'Super balance on track: $107k by 2024',
-            description: 'Your super contributions including salary sacrifice have built a healthy retirement fund above the national average.',
-            confidence_level: 90,
-            data_points: ['Employer: $15,400/year', 'Personal: $15,000/year', 'Balance: $107,410']
-          },
-          {
-            category: 'OvertimeBalance',
-            title: 'Moderate overtime: 8% of total earnings',
-            description: 'Your overtime is balanced but consider if the $18k annually could be better converted to base salary in negotiations.',
-            confidence_level: 85,
-            data_points: ['Base: $140k', 'Overtime: $18k', '156 hours/year']
-          }
-        ]
+        hours_vs_earnings: hoursVsEarnings,
+        super_trajectory: superTrajectory,
+        super_summary: superTrajectory[superTrajectory.length - 1] || { financial_year: 'N/A', employer_contributions: 0, personal_contributions: 0, total_super_balance: 0 },
+        insights: insightsArray
       } as T;
-      
+
     case 'calculate_loyalty_tax':
       return {
         tenure_blocks: [],
@@ -510,7 +626,7 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
         cumulative_loyalty_tax: 24000,
         confidence_level: 0.85
       } as T;
-      
+
     case 'generate_resume_export':
       const resumeData = getUserData();
       return {
@@ -540,7 +656,7 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
         },
         target_preferences: resumeData.profile?.career_preferences || {}
       } as T;
-      
+
     case 'export_all_data':
       const exportData = getUserData();
       return {
@@ -550,7 +666,7 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
         export_date: new Date().toISOString(),
         version: '1.0.0'
       } as T;
-      
+
     case 'import_all_data':
       const { user_profile, positions, compensation_records } = args || {};
       const importData = getUserData();
@@ -558,32 +674,49 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
       if (positions) importData.positions = positions;
       if (compensation_records) importData.compensation = compensation_records;
       setUserData(importData);
-      return { success: true, imported: { 
-        profile: !!user_profile, 
-        positions: positions?.length || 0, 
-        compensation: compensation_records?.length || 0 
-      }} as T;
-      
+      return {
+        success: true, imported: {
+          profile: !!user_profile,
+          positions: positions?.length || 0,
+          compensation: compensation_records?.length || 0
+        }
+      } as T;
+
     case 'load_sample_data':
       setUserData({
         profile: sampleUserProfile,
         positions: samplePositions,
         compensation: sampleCompensation,
       });
-      return { success: true, loaded: {
-        profile: !!sampleUserProfile,
-        positions: samplePositions.length,
-        compensation: sampleCompensation.length
-      }} as T;
-      
+      // setUserData already saves to storage
+      return {
+        success: true, loaded: {
+          profile: !!sampleUserProfile,
+          positions: samplePositions.length,
+          compensation: sampleCompensation.length
+        }
+      } as T;
+
     case 'clear_all_data':
+      const userId = getCurrentUserId();
       setUserData({
         profile: null,
         positions: [],
         compensation: [],
       });
+      // setUserData saves to storage, so we don't strictly need to manually clear tokens unless we want to be cleaner
+      if (typeof window !== 'undefined') {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('careerflow_data_' + userId) ||
+            key.startsWith('careerflow_')) {
+            localStorage.removeItem(key);
+          }
+        });
+        // Re-save empty state to ensure it persists as empty rather than missing
+        saveToStorage();
+      }
       return { success: true } as T;
-      
+
     default:
       throw new Error(`Unknown command: ${command}`);
   }

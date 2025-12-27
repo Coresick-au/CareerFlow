@@ -13,13 +13,13 @@ export function DataBackup() {
   const handleExport = async () => {
     setIsExporting(true);
     setMessage(null);
-    
+
     try {
       const data = await invoke<any>('export_all_data');
-      
+
       // Create a blob with the data
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      
+
       // Create download link
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -29,7 +29,7 @@ export function DataBackup() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       setMessage({ type: 'success', text: 'Data exported successfully!' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to export data. Please try again.' });
@@ -49,7 +49,7 @@ export function DataBackup() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      
+
       // Validate data structure
       if (!data || typeof data !== 'object') {
         throw new Error('Invalid file format');
@@ -57,12 +57,12 @@ export function DataBackup() {
 
       // Import the data
       const result = await invoke<any>('import_all_data', { data });
-      
-      setMessage({ 
-        type: 'success', 
-        text: `Data imported successfully! Imported: ${result.imported.positions} positions, ${result.imported.compensation} compensation records` 
+
+      setMessage({
+        type: 'success',
+        text: `Data imported successfully! Imported: ${result.imported.positions} positions, ${result.imported.compensation} compensation records`
       });
-      
+
       // Refresh the page to show imported data
       setTimeout(() => {
         window.location.reload();
@@ -78,7 +78,7 @@ export function DataBackup() {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full max-w-2xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Download className="w-5 h-5" />
@@ -91,8 +91,8 @@ export function DataBackup() {
           <p className="text-sm text-muted-foreground">
             Download all your career data as a JSON file for safekeeping.
           </p>
-          <Button 
-            onClick={handleExport} 
+          <Button
+            onClick={handleExport}
             disabled={isExporting}
             className="w-full sm:w-auto"
           >
@@ -116,8 +116,8 @@ export function DataBackup() {
                 disabled={isImporting}
                 className="hidden"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 disabled={isImporting}
                 asChild
               >

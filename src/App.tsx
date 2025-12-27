@@ -1,9 +1,9 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { UserProfile } from './pages/UserProfile';
 import { CareerTimeline } from './pages/CareerTimeline';
-import { Compensation } from './pages/Compensation';
+import { CareerLedger } from './pages/CareerLedger';
 import { Analysis } from './pages/Analysis';
 import { ResumeExport } from './pages/ResumeExport';
 import { Settings } from './pages/Settings';
@@ -18,8 +18,9 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/profile" element={<UserProfile />} />
+            <Route path="/ledger" element={<CareerLedger />} />
             <Route path="/career" element={<CareerTimeline />} />
-            <Route path="/compensation" element={<Compensation />} />
+            <Route path="/compensation" element={<Navigate to="/ledger" replace />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/resume" element={<ResumeExport />} />
             <Route path="/settings" element={<Settings />} />
@@ -31,3 +32,4 @@ function App() {
 }
 
 export default App;
+

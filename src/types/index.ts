@@ -68,11 +68,13 @@ export enum SeniorityLevel {
 export enum CompensationEntryType {
   Fuzzy = 'Fuzzy',
   Exact = 'Exact',
+  YearlySummary = 'YearlySummary',
 }
 
 export enum PayType {
   Salary = 'Salary',
   Hourly = 'Hourly',
+  Annual = 'Annual',
 }
 
 export enum OvertimeFrequency {
@@ -115,6 +117,7 @@ export interface UserProfile {
   industry: string;
   highest_qualification: Qualification;
   career_preferences: CareerPreferences;
+  standard_weekly_hours: number; // User-configurable, not hardcoded
   created_at: Date;
   updated_at: Date;
 }
@@ -145,6 +148,7 @@ export const DEFAULT_PROFILE: Omit<UserProfile, 'id' | 'created_at' | 'updated_a
   industry: '',
   highest_qualification: Qualification.HighSchool,
   career_preferences: DEFAULT_CAREER_PREFERENCES,
+  standard_weekly_hours: 38, // Australian full-time default
 };
 
 export interface Position {
@@ -209,16 +213,58 @@ export interface SuperDetails {
   salary_sacrifice: number;
 }
 
+// Weekly/Payslip Entry for detailed tracking
+export interface WeeklyCompensationEntry {
+  id?: number;
+  position_id?: number; // Optional - can be inferred from date overlap with positions
+  financial_year: string; // e.g., "FY2024-25"
+  week_ending: Date;
+  gross_pay: number;
+  tax_withheld: number;
+  net_pay: number; // Calculated: gross - tax
+  hours_ordinary: number;
+  hours_overtime: number;
+  overtime_rate_multiplier: number; // e.g., 1.5 or 2.0
+  allowances: Allowance[];
+  super_contributed: number;
+  notes?: string;
+  created_at: Date;
+}
+
+// Yearly ATO Summary Entry
+export interface YearlyIncomeEntry {
+  id?: number;
+  position_id?: number;
+  financial_year: string; // e.g., "FY2024-25"
+  gross_income: number; // From payment summary
+  tax_withheld: number;
+  reportable_super: number;
+  reportable_fringe_benefits?: number;
+  source: 'ATO' | 'Manual'; // Where the data came from
+  notes?: string;
+  created_at: Date;
+}
+
+// Union type for income entries in the Career Ledger
+export type IncomeEntry =
+  | { type: 'weekly'; data: WeeklyCompensationEntry }
+  | { type: 'yearly'; data: YearlyIncomeEntry }
+  | { type: 'compensation'; data: CompensationRecord }
+  | { type: 'position'; data: Position };
+
 // Analysis Types
 export interface EarningsAnalysis {
   current_total_compensation: number;
   current_effective_hourly_rate: number;
+  current_weekly_hours: number;
   income_percentile: number;
   loyalty_tax_annual: number;
   loyalty_tax_cumulative: number;
+  years_since_last_change: number;
   earnings_over_time: EarningsSnapshot[];
   hours_vs_earnings: HoursEarningsPoint[];
   super_trajectory: SuperSnapshot[];
+  super_summary: SuperSnapshot;
   insights: EarningsInsight[];
 }
 
@@ -228,6 +274,8 @@ export interface EarningsSnapshot {
   actual_annual: number;
   total_with_super: number;
   effective_hourly_rate: number;
+  bonuses_annual: number;
+  allowances_annual: number;
 }
 
 export interface HoursEarningsPoint {

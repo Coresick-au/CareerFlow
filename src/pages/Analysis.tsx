@@ -64,14 +64,14 @@ export function Analysis() {
                 <p className="text-sm text-muted-foreground mb-2">Market Position</p>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-foreground">Income Percentile</span>
-                  <Badge variant={earnings?.income_percentile && earnings.income_percentile > 75 ? 'default' : 
-                                earnings?.income_percentile && earnings.income_percentile > 50 ? 'secondary' : 'destructive'}>
+                  <Badge variant={earnings?.income_percentile && earnings.income_percentile > 75 ? 'default' :
+                    earnings?.income_percentile && earnings.income_percentile > 50 ? 'secondary' : 'destructive'}>
                     {earnings?.income_percentile.toFixed(0)}th
                   </Badge>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2 mt-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
+                  <div
+                    className="bg-blue-600 h-2 rounded-full"
                     style={{ width: `${earnings?.income_percentile || 0}%` }}
                   ></div>
                 </div>
@@ -199,8 +199,8 @@ export function Analysis() {
                 <span>Total Hours/Week</span>
                 <span className="font-medium">46 hours</span>
               </div>
-              <div className="pt-2 border-t">
-                <div className="text-xs text-gray-500">
+              <div className="pt-2 border-t border-border">
+                <div className="text-xs text-muted-foreground">
                   <p>• 21% overtime intensity</p>
                   <p>• Consider work-life balance</p>
                   <p>• Overtime boosting effective rate</p>
@@ -219,17 +219,17 @@ export function Analysis() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
-              <div className="p-2 bg-blue-50 rounded">
-                <p className="font-medium text-blue-900">Market Review</p>
-                <p className="text-blue-700">Consider negotiating every 18-24 months</p>
+              <div className="p-2 bg-blue-500/10 dark:bg-blue-500/20 rounded border border-blue-500/20">
+                <p className="font-medium text-blue-700 dark:text-blue-300">Market Review</p>
+                <p className="text-blue-600 dark:text-blue-400">Consider negotiating every 18-24 months</p>
               </div>
-              <div className="p-2 bg-green-50 rounded">
-                <p className="font-medium text-green-900">Skills Development</p>
-                <p className="text-green-700">Focus on high-demand certifications</p>
+              <div className="p-2 bg-green-500/10 dark:bg-green-500/20 rounded border border-green-500/20">
+                <p className="font-medium text-green-700 dark:text-green-300">Skills Development</p>
+                <p className="text-green-600 dark:text-green-400">Focus on high-demand certifications</p>
               </div>
-              <div className="p-2 bg-purple-50 rounded">
-                <p className="font-medium text-purple-900">Career Mobility</p>
-                <p className="text-purple-700">Change roles every 3-5 years for growth</p>
+              <div className="p-2 bg-purple-500/10 dark:bg-purple-500/20 rounded border border-purple-500/20">
+                <p className="font-medium text-purple-700 dark:text-purple-300">Career Mobility</p>
+                <p className="text-purple-600 dark:text-purple-400">Change roles every 3-5 years for growth</p>
               </div>
             </div>
           </CardContent>
@@ -248,7 +248,7 @@ export function Analysis() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 border rounded-lg">
               <h3 className="font-medium mb-2">Short Term (0-6 months)</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Document specific achievements with metrics</li>
                 <li>• Research market rates for your role</li>
                 <li>• Update resume and LinkedIn profile</li>
@@ -257,7 +257,7 @@ export function Analysis() {
             </div>
             <div className="p-4 border rounded-lg">
               <h3 className="font-medium mb-2">Long Term (6-24 months)</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Explore leadership opportunities</li>
                 <li>• Build professional network</li>
                 <li>• Consider contract vs permanent options</li>

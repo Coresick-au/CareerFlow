@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { UserProfile, Position, CompensationRecord } from '../types';
 
 interface User {
   id: string;
@@ -32,12 +31,12 @@ export function UserProvider({ children }: UserProviderProps) {
   useEffect(() => {
     const storedUsers = localStorage.getItem('careerflow_users');
     const storedCurrentUser = localStorage.getItem('careerflow_current_user');
-    
+
     if (storedUsers) {
       const parsedUsers = JSON.parse(storedUsers);
       setUsers(parsedUsers.map((u: any) => ({ ...u, createdAt: new Date(u.createdAt) })));
     }
-    
+
     if (storedCurrentUser) {
       const parsedUser = JSON.parse(storedCurrentUser);
       setCurrentUser({ ...parsedUser, createdAt: new Date(parsedUser.createdAt) });
@@ -48,7 +47,7 @@ export function UserProvider({ children }: UserProviderProps) {
     } else {
       // Create default user if no users exist
       const defaultUser: User = {
-        id: 'default',
+        id: `user_${Date.now()}`,
         name: 'Demo User',
         email: 'demo@example.com',
         createdAt: new Date(),
@@ -100,16 +99,16 @@ export function UserProvider({ children }: UserProviderProps) {
       alert('Cannot delete the last user');
       return;
     }
-    
+
     const newUsers = users.filter(u => u.id !== userId);
     setUsers(newUsers);
-    
+
     // If deleting current user, switch to another
     if (currentUser?.id === userId) {
       const nextUser = newUsers[0];
       setCurrentUser(nextUser);
     }
-    
+
     // Clear data for deleted user from localStorage
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith(`careerflow_data_${userId}`)) {
@@ -119,10 +118,10 @@ export function UserProvider({ children }: UserProviderProps) {
   };
 
   const updateUser = (userId: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => 
+    setUsers(prev => prev.map(u =>
       u.id === userId ? { ...u, ...updates } : u
     ));
-    
+
     if (currentUser?.id === userId) {
       setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
     }

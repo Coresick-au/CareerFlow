@@ -37,7 +37,7 @@ export function Compensation() {
   });
 
   const saveRecordMutation = useMutation({
-    mutationFn: (record: CompensationRecord) => 
+    mutationFn: (record: CompensationRecord) =>
       invoke<number>('save_compensation_record', { record }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['compensationRecords', selectedPosition?.id] });
@@ -80,22 +80,22 @@ export function Compensation() {
   };
 
   const calculateAnnualEarnings = (record: CompensationRecord) => {
-    const baseAnnual = record.pay_type === 'Salary' 
-      ? record.base_rate 
+    const baseAnnual = record.pay_type === 'Salary'
+      ? record.base_rate
       : record.base_rate * record.standard_weekly_hours * 52;
-    
-    const overtimeAnnual = record.overtime.average_hours_per_week * 
-      record.overtime.rate_multiplier * 
-      record.base_rate * 
+
+    const overtimeAnnual = record.overtime.average_hours_per_week *
+      record.overtime.rate_multiplier *
+      record.base_rate *
       52;
-    
+
     const allowancesAnnual = record.allowances.reduce((sum, allowance) => {
-      const multiplier = allowance.frequency === 'Weekly' ? 52 : 
-                       allowance.frequency === 'Fortnightly' ? 26 :
-                       allowance.frequency === 'Monthly' ? 12 : 1;
+      const multiplier = allowance.frequency === 'Weekly' ? 52 :
+        allowance.frequency === 'Fortnightly' ? 26 :
+          allowance.frequency === 'Monthly' ? 12 : 1;
       return sum + (allowance.amount * multiplier);
     }, 0);
-    
+
     return baseAnnual + overtimeAnnual + allowancesAnnual;
   };
 
@@ -118,16 +118,15 @@ export function Compensation() {
                 <button
                   key={position.id}
                   onClick={() => setSelectedPosition(position)}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    selectedPosition?.id === position.id
+                  className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedPosition?.id === position.id
                       ? 'border-blue-500 bg-blue-500 dark:bg-blue-600'
                       : 'border-border hover:bg-muted'
-                  }`}
+                    }`}
                 >
                   <div className="font-medium">{position.job_title}</div>
                   <div className="text-sm text-muted-foreground">{position.employer_name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {position.start_date.toLocaleDateString()} - 
+                    {position.start_date.toLocaleDateString()} -
                     {position.end_date?.toLocaleDateString() || 'Present'}
                   </div>
                 </button>
@@ -178,11 +177,10 @@ export function Compensation() {
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              record.entry_type === 'Fuzzy' 
+                            <span className={`px-2 py-1 text-xs rounded-full ${record.entry_type === 'Fuzzy'
                                 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                                 : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                            }`}>
+                              }`}>
                               {record.entry_type}
                             </span>
                             <span className="text-sm text-muted-foreground">
@@ -194,12 +192,12 @@ export function Compensation() {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-muted-foreground">Base: </span>
                               <span className="font-medium">
-                                {record.pay_type === 'Salary' ? 'Salary' : 'Hourly'} - 
+                                {record.pay_type === 'Salary' ? 'Salary' : 'Hourly'} -
                                 {formatCurrency(record.base_rate)}
                               </span>
                             </div>
@@ -299,30 +297,30 @@ export function Compensation() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingRecord ? 'Edit' : 'Add'} {entryMode === 'fuzzy' ? 'Quick Estimate' : entryMode === 'yearly' ? 'Yearly Summary' : 'Exact Payslip'} 
+              {editingRecord ? 'Edit' : 'Add'} {entryMode === 'fuzzy' ? 'Quick Estimate' : entryMode === 'yearly' ? 'Yearly Summary' : 'Exact Payslip'}
               {entryMode && ' for ' + selectedPosition?.job_title}
             </DialogTitle>
           </DialogHeader>
-          
+
           {entryMode === 'fuzzy' && (
             <FuzzyCompensationForm
-              record={editingRecord}
+              initialData={editingRecord}
               onSave={handleSaveRecord}
               onCancel={() => setDialogOpen(false)}
             />
           )}
-          
+
           {entryMode === 'yearly' && (
             <YearlyWageForm
-              record={editingRecord}
+              initialData={editingRecord}
               onSave={handleSaveRecord}
               onCancel={() => setDialogOpen(false)}
             />
           )}
-          
+
           {entryMode === 'exact' && (
             <ExactCompensationForm
-              record={editingRecord}
+              initialData={editingRecord}
               onSave={handleSaveRecord}
               onCancel={() => setDialogOpen(false)}
             />

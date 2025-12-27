@@ -3,17 +3,41 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '../lib/tauri';
 import type { UserProfile as UserProfileType } from '../types';
 import { AustralianState, Qualification, EmploymentType, DEFAULT_PROFILE } from '../types';
-import { Save, User, Database, Trash2 } from 'lucide-react';
+import { Save, User } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
+// Helper to safely format a date for input fields
+function formatDateForInput(date: Date | string | undefined | null): string {
+  if (!date) return '';
+  try {
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+}
+
+// Helper to safely parse a date from input
+function parseDateFromInput(value: string): Date | null {
+  if (!value) return null;
+  try {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
 export function UserProfile() {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<UserProfileType | null>(null);
-  
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
   const { data: profile, isLoading } = useQuery({
     queryKey: ['userProfile'],
     queryFn: () => invoke<UserProfileType>('get_user_profile'),
@@ -25,63 +49,57 @@ export function UserProfile() {
     }
   }, [profile, formData]);
 
-  const loadSampleDataMutation = useMutation({
-    mutationFn: () => invoke('load_sample_data'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-      queryClient.invalidateQueries({ queryKey: ['positions'] });
-      queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
-      alert('Sample data loaded successfully!');
-    },
-  });
-
-  const clearDataMutation = useMutation({
-    mutationFn: () => invoke('clear_all_data'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-      queryClient.invalidateQueries({ queryKey: ['positions'] });
-      queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
-      alert('All data cleared successfully!');
-    },
-  });
-
   // Use the actual profile if it exists, otherwise use defaults
-  const safeProfile: UserProfileType = formData || profile || {
+  const defaultProfile: UserProfileType = {
     ...DEFAULT_PROFILE,
     id: undefined,
     created_at: new Date(),
     updated_at: new Date(),
   } as UserProfileType;
 
+  const safeProfile: UserProfileType = formData || profile || defaultProfile;
+
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => prev ? { ...prev, [field]: value } : null);
+    setFormData(prev => {
+      const base = prev || profile || defaultProfile;
+      return { ...base, [field]: value };
+    });
   };
 
   const handleCareerPreferenceChange = (field: string, value: any) => {
-    setFormData(prev => prev ? {
-      ...prev,
-      career_preferences: {
-        ...prev.career_preferences,
-        [field]: value
-      }
-    } : null);
+    setFormData(prev => {
+      const base = prev || profile || defaultProfile;
+      return {
+        ...base,
+        career_preferences: {
+          ...base.career_preferences,
+          [field]: value
+        }
+      };
+    });
   };
 
   const saveProfileMutation = useMutation({
     mutationFn: (profile: UserProfileType) => invoke('save_user_profile', { profile }),
+    onMutate: () => {
+      setSaveStatus('saving');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-      alert('Profile saved successfully!');
+      setSaveStatus('saved');
+      // Reset after 3 seconds
+      setTimeout(() => setSaveStatus('idle'), 3000);
     },
     onError: (error) => {
-      alert('Failed to save profile. Please try again.');
+      setSaveStatus('error');
       console.error('Save profile error:', error);
+      setTimeout(() => setSaveStatus('idle'), 3000);
     },
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!formData) {
       alert('No data to save');
       return;
@@ -112,39 +130,6 @@ export function UserProfile() {
         <h1 className="text-2xl font-bold text-foreground">User Profile</h1>
         <p className="text-muted-foreground">Manage your personal information and preferences</p>
       </div>
-
-      {/* Sample Data Controls */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Database className="w-5 h-5 mr-2" />
-            Test Data Controls
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Load realistic sample data to test the application, or clear all data to start fresh.
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => loadSampleDataMutation.mutate()}
-              disabled={loadSampleDataMutation.isPending}
-            >
-              <Database className="w-4 h-4 mr-2" />
-              {loadSampleDataMutation.isPending ? 'Loading...' : 'Load Sample Data'}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => clearDataMutation.mutate()}
-              disabled={clearDataMutation.isPending}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              {clearDataMutation.isPending ? 'Clearing...' : 'Clear All Data'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -180,8 +165,11 @@ export function UserProfile() {
                 <Label>Date of Birth</Label>
                 <Input
                   type="date"
-                  value={safeProfile.date_of_birth ? safeProfile.date_of_birth.toISOString().split('T')[0] : ''}
-                  onChange={(e) => handleInputChange('date_of_birth', new Date(e.target.value))}
+                  value={formatDateForInput(safeProfile.date_of_birth)}
+                  onChange={(e) => {
+                    const date = parseDateFromInput(e.target.value);
+                    if (date) handleInputChange('date_of_birth', date);
+                  }}
                   required
                 />
               </div>
@@ -235,10 +223,10 @@ export function UserProfile() {
                 </Select>
               </div>
             </CardContent>
-          </Card>
+          </Card >
 
           {/* Career Preferences */}
-          <Card>
+          < Card >
             <CardHeader>
               <CardTitle>Career Preferences</CardTitle>
             </CardHeader>
@@ -324,16 +312,22 @@ export function UserProfile() {
                 </label>
               </div>
             </CardContent>
-          </Card>
-        </div>
+          </Card >
+        </div >
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex items-center justify-end gap-4">
+          {saveStatus === 'saved' && (
+            <span className="text-sm text-green-500 font-medium">✓ Profile saved successfully!</span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-sm text-red-500 font-medium">Failed to save. Please try again.</span>
+          )}
           <Button type="submit" disabled={saveProfileMutation.isPending}>
             <Save className="w-4 h-4 mr-2" />
             {saveProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
           </Button>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 }

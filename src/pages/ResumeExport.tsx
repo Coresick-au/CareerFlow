@@ -21,12 +21,12 @@ export function ResumeExport() {
 
   const handleDownloadJSON = () => {
     if (!resumeData) return;
-    
+
     const dataStr = JSON.stringify(resumeData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
     const exportFileDefaultName = 'career_profile.json';
-    
+
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
@@ -35,7 +35,7 @@ export function ResumeExport() {
 
   const handleCopyPrompt = async () => {
     if (!resumeData) return;
-    
+
     const prompt = generateChatGPTPrompt(resumeData, selectedType);
     await navigator.clipboard.writeText(prompt);
     setCopied(true);
@@ -131,7 +131,7 @@ Please generate the resume content now.`;
                 <Download className="w-4 h-4 mr-2" />
                 Download career_profile.json
               </Button>
-              
+
               <Button onClick={handleCopyPrompt} variant="outline" className="w-full">
                 {copied ? (
                   <>
@@ -167,27 +167,27 @@ Please generate the resume content now.`;
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Name:</span>
+                <span className="text-sm text-muted-foreground">Name:</span>
                 <span className="font-medium">{resumeData.profile_summary.name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Experience:</span>
+                <span className="text-sm text-muted-foreground">Experience:</span>
                 <span className="font-medium">{resumeData.profile_summary.experience_years.toFixed(1)} years</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Level:</span>
+                <span className="text-sm text-muted-foreground">Level:</span>
                 <Badge variant="secondary">{resumeData.profile_summary.seniority_level}</Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Industry:</span>
+                <span className="text-sm text-muted-foreground">Industry:</span>
                 <span className="font-medium">{resumeData.profile_summary.industry}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Positions:</span>
+                <span className="text-sm text-muted-foreground">Positions:</span>
                 <span className="font-medium">{resumeData.career_timeline.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Skills:</span>
+                <span className="text-sm text-muted-foreground">Skills:</span>
                 <span className="font-medium">{resumeData.skills_and_tools.length}</span>
               </div>
             </div>
@@ -203,19 +203,19 @@ Please generate the resume content now.`;
         <CardContent>
           <div className="space-y-4">
             {resumeData.career_timeline.slice(0, 3).map((position: ResumePosition, index: number) => (
-              <div key={index} className="border-l-2 border-gray-200 pl-4">
+              <div key={index} className="border-l-2 border-border pl-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-medium">{position.title}</h3>
-                    <p className="text-sm text-gray-600">{position.employer}</p>
-                    <p className="text-xs text-gray-500">{position.duration}</p>
+                    <h3 className="font-medium text-foreground">{position.title}</h3>
+                    <p className="text-sm text-muted-foreground">{position.employer}</p>
+                    <p className="text-xs text-muted-foreground/70">{position.duration}</p>
                   </div>
                   <Badge variant="outline">{position.skills_used.length} skills</Badge>
                 </div>
               </div>
             ))}
             {resumeData.career_timeline.length > 3 && (
-              <p className="text-sm text-gray-500 text-center">
+              <p className="text-sm text-muted-foreground text-center">
                 ... and {resumeData.career_timeline.length - 3} more positions
               </p>
             )}
@@ -224,15 +224,15 @@ Please generate the resume content now.`;
       </Card>
 
       {/* Instructions */}
-      <Card className="mt-6 bg-blue-50">
+      <Card className="mt-6 bg-blue-500/10 dark:bg-blue-500/20 border-blue-500/20">
         <CardHeader>
-          <CardTitle className="text-blue-900">Important Notes</CardTitle>
+          <CardTitle className="text-blue-700 dark:text-blue-300">Important Notes</CardTitle>
         </CardHeader>
-        <CardContent className="text-blue-800">
+        <CardContent className="text-blue-600 dark:text-blue-400">
           <ul className="space-y-2 text-sm">
             <li>• The JSON file contains your complete career history - keep it secure</li>
             <li>• Always review AI-generated resumes for accuracy</li>
-            <li>• Customize the output for specific job applications</li>
+            <li>• Customise the output for specific job applications</li>
             <li>• Remove sensitive company information if needed</li>
             <li>• Focus on achievements and quantifiable results</li>
           </ul>

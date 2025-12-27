@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '../lib/tauri';
 import { Position, SeniorityLevel, EmploymentType } from '../types';
-import { Plus, Edit, Trash2, Briefcase, MapPin, Calendar, Database, Trash2 as ClearAll } from 'lucide-react';
+import { Plus, Edit, Trash2, Briefcase, MapPin, Calendar, Database } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
@@ -10,10 +10,15 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import { formatDateAU, formatDuration } from '../lib/utils';
 
 export function CareerTimeline() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [positionToDelete, setPositionToDelete] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const { data: positions = [] } = useQuery({
@@ -27,7 +32,7 @@ export function CareerTimeline() {
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       queryClient.invalidateQueries({ queryKey: ['positions'] });
       queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
-      alert('Sample data loaded successfully!');
+      queryClient.invalidateQueries({ queryKey: ['earningsAnalysis'] });
     },
   });
 
@@ -37,7 +42,8 @@ export function CareerTimeline() {
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       queryClient.invalidateQueries({ queryKey: ['positions'] });
       queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
-      alert('All data cleared successfully!');
+      queryClient.invalidateQueries({ queryKey: ['earningsAnalysis'] });
+      setClearConfirmOpen(false);
     },
   });
 
@@ -54,8 +60,15 @@ export function CareerTimeline() {
     mutationFn: (id: number) => invoke('delete_position', { id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['positions'] });
+      setDeleteConfirmOpen(false);
+      setPositionToDelete(null);
     },
   });
+
+  const handleDeletePosition = (id: number) => {
+    setPositionToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
 
   const handleAddPosition = () => {
     setEditingPosition(null);
@@ -70,7 +83,7 @@ export function CareerTimeline() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     const position: Position = {
       id: editingPosition?.id,
       employer_name: formData.get('employerName') as string,
@@ -88,18 +101,6 @@ export function CareerTimeline() {
     };
 
     savePositionMutation.mutate(position);
-  };
-
-  const formatDuration = (start: Date, end?: Date) => {
-    const months = (end?.getFullYear() || new Date().getFullYear() - start.getFullYear()) * 12 + 
-                   ((end?.getMonth() || new Date().getMonth()) - start.getMonth());
-    const years = Math.floor(months / 12);
-    const remainingMonths = months % 12;
-    
-    if (years > 0) {
-      return remainingMonths > 0 ? `${years}y ${remainingMonths}m` : `${years}y`;
-    }
-    return `${remainingMonths}m`;
   };
 
   return (
@@ -120,11 +121,12 @@ export function CareerTimeline() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => clearDataMutation.mutate()}
+            onClick={() => setClearConfirmOpen(true)}
             disabled={clearDataMutation.isPending}
+            className="text-destructive hover:text-destructive"
           >
-            <ClearAll className="w-4 h-4 mr-2" />
-            {clearDataMutation.isPending ? 'Clearing...' : 'Clear All'}
+            <Trash2 className="w-4 h-4 mr-2" />
+            Clear All
           </Button>
           <Button onClick={handleAddPosition}>
             <Plus className="w-4 h-4 mr-2" />
@@ -145,7 +147,7 @@ export function CareerTimeline() {
                     <Badge variant="secondary">{position.seniority_level}</Badge>
                     <Badge variant="outline">{position.employment_type}</Badge>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                     <div className="flex items-center gap-1">
                       <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -153,7 +155,7 @@ export function CareerTimeline() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
-                      {position.start_date.toLocaleDateString()} - {position.end_date?.toLocaleDateString() || 'Present'}
+                      {formatDateAU(position.start_date)} - {position.end_date ? formatDateAU(position.end_date) : 'Present'}
                       <span className="text-muted-foreground">({formatDuration(position.start_date, position.end_date)})</span>
                     </div>
                   </div>
@@ -163,7 +165,7 @@ export function CareerTimeline() {
                     <p className="text-sm text-muted-foreground whitespace-pre-line">{position.core_responsibilities}</p>
                   </div>
 
-                  {position.tools_systems_skills.length > 0 && (
+                  {position.tools_systems_skills?.length > 0 && (
                     <div className="mb-3">
                       <p className="text-sm font-medium text-foreground mb-1">Skills & Tools</p>
                       <div className="flex flex-wrap gap-1">
@@ -176,7 +178,7 @@ export function CareerTimeline() {
                     </div>
                   )}
 
-                  {position.achievements.length > 0 && (
+                  {position.achievements?.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-foreground mb-1">Key Achievements</p>
                       <ul className="text-sm text-muted-foreground list-disc list-inside">
@@ -199,12 +201,8 @@ export function CareerTimeline() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this position?')) {
-                        deletePositionMutation.mutate(position.id!);
-                      }
-                    }}
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleDeletePosition(position.id!)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -235,14 +233,15 @@ export function CareerTimeline() {
               {editingPosition ? 'Edit' : 'Add'} Position
             </DialogTitle>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Employer Name</Label>
+                <Label>Company / Organisation</Label>
                 <Input
                   name="employerName"
                   defaultValue={editingPosition?.employer_name}
+                  placeholder="e.g., BHP, Telstra, Local Council"
                   required
                 />
               </div>
@@ -293,7 +292,7 @@ export function CareerTimeline() {
                 <Input
                   name="location"
                   defaultValue={editingPosition?.location}
-                  placeholder="City, State"
+                  placeholder="e.g., Sydney, NSW or Remote"
                   required
                 />
               </div>
@@ -324,7 +323,7 @@ export function CareerTimeline() {
               <Label>Core Responsibilities</Label>
               <textarea
                 name="responsibilities"
-                className="w-full mt-1 p-2 border rounded-md"
+                className="w-full mt-1 p-2 border border-border bg-background text-foreground rounded-md"
                 rows={4}
                 defaultValue={editingPosition?.core_responsibilities}
                 placeholder="Describe your key responsibilities..."
@@ -345,10 +344,10 @@ export function CareerTimeline() {
               <Label>Key Achievements (one per line)</Label>
               <textarea
                 name="achievements"
-                className="w-full mt-1 p-2 border rounded-md"
+                className="w-full mt-1 p-2 border border-border bg-background text-foreground rounded-md"
                 rows={4}
                 defaultValue={editingPosition?.achievements.join('\n')}
-                placeholder="List your key achievements with metrics where possible..."
+                placeholder="List achievements with metrics, e.g.:\n• Reduced processing time by 40%\n• Led team of 5 engineers\n• Delivered $2M project on time"
               />
             </div>
 
@@ -363,6 +362,30 @@ export function CareerTimeline() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Clear All Data Confirmation */}
+      <ConfirmationDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="Clear All Data"
+        description="This will permanently delete all your career data, including positions, compensation records, and profile information."
+        confirmPhrase="DELETE ALL"
+        confirmButtonText="Clear All Data"
+        onConfirm={() => clearDataMutation.mutate()}
+        isLoading={clearDataMutation.isPending}
+      />
+
+      {/* Delete Position Confirmation */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Position"
+        description="This will permanently delete this position and all associated compensation records."
+        confirmPhrase="DELETE"
+        confirmButtonText="Delete Position"
+        onConfirm={() => positionToDelete && deletePositionMutation.mutate(positionToDelete)}
+        isLoading={deletePositionMutation.isPending}
+      />
     </div>
   );
 }

@@ -321,3 +321,21 @@ pub enum InsightCategory {
     MarketOpportunity,
     SkillsGap,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeeklyCompensationEntry {
+    pub id: Option<i64>,
+    pub position_id: Option<i64>,
+    pub financial_year: String,
+    pub week_ending: NaiveDate,
+    pub gross_pay: f64,
+    pub tax_withheld: f64,
+    pub net_pay: f64,
+    pub hours_ordinary: f64,
+    pub hours_overtime: f64,
+    pub overtime_rate_multiplier: f64,
+    pub allowances: Vec<Allowance>,
+    pub super_contributed: f64,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}

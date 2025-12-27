@@ -7,11 +7,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { ConfirmationDialog } from './ConfirmationDialog';
 
 export function UserSelector() {
   const { currentUser, users, switchUser, createUser, deleteUser, updateUser } = useUser();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [editingUser, setEditingUser] = useState<{ id: string; name: string; email: string } | null>(null);
@@ -47,20 +49,21 @@ export function UserSelector() {
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this user? All their data will be permanently removed.')) {
-      deleteUser(userId);
+  const handleDeleteUser = () => {
+    if (currentUser) {
+      deleteUser(currentUser.id);
+      setIsDeleteOpen(false);
     }
   };
 
   return (
     <div className="p-4 border-b border-border">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-muted-foreground">Current User</span>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">User</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4" />
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+              <Settings className="w-3.5 h-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -75,9 +78,9 @@ export function UserSelector() {
             {users.length > 1 && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => currentUser && handleDeleteUser(currentUser.id)}
-                  className="text-red-600 dark:text-red-400"
+                <DropdownMenuItem
+                  onClick={() => setIsDeleteOpen(true)}
+                  className="text-destructive"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete User
@@ -87,25 +90,38 @@ export function UserSelector() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
-      <Select value={currentUser?.id || ''} onValueChange={switchUser}>
-        <SelectTrigger className="w-full">
-          <div className="flex items-center">
-            <User className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Select user" />
-          </div>
-        </SelectTrigger>
-        <SelectContent>
-          {users.map((user) => (
-            <SelectItem key={user.id} value={user.id}>
-              <div className="flex flex-col">
-                <span>{user.name}</span>
-                <span className="text-xs text-muted-foreground">{user.email}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+
+      {/* Current user display - simplified */}
+      {users.length <= 1 ? (
+        <div className="flex items-center gap-2 py-1">
+          <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm font-medium truncate">{currentUser?.name || 'No user'}</span>
+        </div>
+      ) : (
+        <Select value={currentUser?.id || users[0]?.id || 'none'} onValueChange={switchUser}>
+          <SelectTrigger className="w-full h-9">
+            <SelectValue>
+              {currentUser ? (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{currentUser.name}</span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">Select user</span>
+              )}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {users.filter((user, idx, arr) =>
+              arr.findIndex(u => u.id === user.id) === idx
+            ).map((user) => (
+              <SelectItem key={user.id} value={user.id}>
+                {user.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Create User Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -178,6 +194,17 @@ export function UserSelector() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation */}
+      <ConfirmationDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Delete User"
+        description={`This will permanently delete "${currentUser?.name}" and all their career data.`}
+        confirmPhrase="DELETE"
+        confirmButtonText="Delete User"
+        onConfirm={handleDeleteUser}
+      />
     </div>
   );
 }

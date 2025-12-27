@@ -90,11 +90,34 @@ impl Database {
                 super_additional_contributions REAL NOT NULL,
                 super_salary_sacrifice REAL NOT NULL,
                 payslip_frequency TEXT,
+                tax_withheld REAL,
                 effective_date TEXT NOT NULL,
                 confidence_score REAL NOT NULL,
                 notes TEXT,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (position_id) REFERENCES positions(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        // One-off Weekly Entries table
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS weekly_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                position_id INTEGER, -- Optional link to a position
+                financial_year TEXT NOT NULL,
+                week_ending TEXT NOT NULL,
+                gross_pay REAL NOT NULL,
+                tax_withheld REAL NOT NULL,
+                net_pay REAL NOT NULL,
+                hours_ordinary REAL NOT NULL,
+                hours_overtime REAL NOT NULL,
+                overtime_rate_multiplier REAL NOT NULL,
+                allowances TEXT NOT NULL, -- JSON array
+                super_contributed REAL NOT NULL,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (position_id) REFERENCES positions(id) ON DELETE SET NULL
             )",
             [],
         )?;
@@ -107,6 +130,11 @@ impl Database {
 
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_compensation_position_date ON compensation_records(position_id, effective_date)",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_weekly_date ON weekly_entries(week_ending)",
             [],
         )?;
 
@@ -318,7 +346,7 @@ impl Database {
                         standard_weekly_hours, overtime_frequency, overtime_rate_multiplier,
                         overtime_average_hours_per_week, overtime_annual_hours, allowances,
                         bonuses, super_contribution_rate, super_additional_contributions,
-                        super_salary_sacrifice, payslip_frequency, effective_date,
+                        super_salary_sacrifice, payslip_frequency, tax_withheld, effective_date,
                         confidence_score, notes, created_at
                  FROM compensation_records
                  WHERE position_id = ?1
@@ -352,10 +380,11 @@ impl Database {
                 },
                 payslip_frequency: row.get::<_, Option<String>>(15)?
                     .map(|s| serde_json::from_str(&s).unwrap()),
-                effective_date: NaiveDate::parse_from_str(&row.get::<_, String>(16)?, "%Y-%m-%d").unwrap(),
-                confidence_score: row.get(17)?,
-                notes: row.get(18)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(19)?).unwrap().with_timezone(&Utc),
+                tax_withheld: row.get(16)?,
+                effective_date: NaiveDate::parse_from_str(&row.get::<_, String>(17)?, "%Y-%m-%d").unwrap(),
+                confidence_score: row.get(18)?,
+                notes: row.get(19)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(20)?).unwrap().with_timezone(&Utc),
             })
         }).unwrap();
 
@@ -377,8 +406,8 @@ impl Database {
                     overtime_average_hours_per_week = ?7, overtime_annual_hours = ?8,
                     allowances = ?9, bonuses = ?10, super_contribution_rate = ?11,
                     super_additional_contributions = ?12, super_salary_sacrifice = ?13,
-                    payslip_frequency = ?14, effective_date = ?15, confidence_score = ?16, notes = ?17
-                 WHERE id = ?18",
+                    payslip_frequency = ?14, tax_withheld = ?15, effective_date = ?16, confidence_score = ?17, notes = ?18
+                 WHERE id = ?19",
                 params![
                     serde_json::to_string(&record.entry_type).unwrap(),
                     serde_json::to_string(&record.pay_type).unwrap(),
@@ -394,6 +423,7 @@ impl Database {
                     record.super_contributions.additional_contributions,
                     record.super_contributions.salary_sacrifice,
                     record.payslip_frequency.map(|s| serde_json::to_string(&s).unwrap()),
+                    record.tax_withheld,
                     record.effective_date.to_string(),
                     record.confidence_score,
                     record.notes,
@@ -409,8 +439,8 @@ impl Database {
                     overtime_frequency, overtime_rate_multiplier, overtime_average_hours_per_week,
                     overtime_annual_hours, allowances, bonuses, super_contribution_rate,
                     super_additional_contributions, super_salary_sacrifice, payslip_frequency,
-                    effective_date, confidence_score, notes, created_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+                    tax_withheld, effective_date, confidence_score, notes, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
                 params![
                     record.position_id,
                     serde_json::to_string(&record.entry_type).unwrap(),
@@ -427,6 +457,7 @@ impl Database {
                     record.super_contributions.additional_contributions,
                     record.super_contributions.salary_sacrifice,
                     record.payslip_frequency.map(|s| serde_json::to_string(&s).unwrap()),
+                    record.tax_withheld,
                     record.effective_date.to_string(),
                     record.confidence_score,
                     record.notes,
@@ -435,5 +466,111 @@ impl Database {
             )?;
             Ok(self.conn.last_insert_rowid())
         }
+    }
+
+    pub fn delete_compensation_record(&self, id: i64) -> SqlResult<()> {
+        self.conn.execute("DELETE FROM compensation_records WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    // Weekly Entry operations
+    pub fn get_weekly_entries(&self) -> Vec<WeeklyCompensationEntry> {
+        let mut stmt = self.conn
+            .prepare(
+                "SELECT id, position_id, financial_year, week_ending, gross_pay,
+                        tax_withheld, net_pay, hours_ordinary, hours_overtime,
+                        overtime_rate_multiplier, allowances, super_contributed,
+                        notes, created_at
+                 FROM weekly_entries
+                 ORDER BY week_ending DESC"
+            )
+            .unwrap();
+
+        let rows = stmt.query_map([], |row| {
+            let allowances_json: String = row.get(10)?;
+
+            Ok(WeeklyCompensationEntry {
+                id: Some(row.get(0)?),
+                position_id: row.get(1)?,
+                financial_year: row.get(2)?,
+                week_ending: NaiveDate::parse_from_str(&row.get::<_, String>(3)?, "%Y-%m-%d").unwrap(),
+                gross_pay: row.get(4)?,
+                tax_withheld: row.get(5)?,
+                net_pay: row.get(6)?,
+                hours_ordinary: row.get(7)?,
+                hours_overtime: row.get(8)?,
+                overtime_rate_multiplier: row.get(9)?,
+                allowances: serde_json::from_str(&allowances_json).unwrap(),
+                super_contributed: row.get(11)?,
+                notes: row.get(12)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?).unwrap().with_timezone(&Utc),
+            })
+        }).unwrap();
+
+        rows.map(|r| r.unwrap()).collect()
+    }
+
+    pub fn save_weekly_entry(&self, entry: WeeklyCompensationEntry) -> SqlResult<i64> {
+        let now = Utc::now().to_rfc3339();
+        
+        let allowances_json = serde_json::to_string(&entry.allowances).unwrap();
+        
+        if let Some(id) = entry.id {
+            // Update existing
+            self.conn.execute(
+                "UPDATE weekly_entries SET
+                    position_id = ?1, financial_year = ?2, week_ending = ?3,
+                    gross_pay = ?4, tax_withheld = ?5, net_pay = ?6,
+                    hours_ordinary = ?7, hours_overtime = ?8, overtime_rate_multiplier = ?9,
+                    allowances = ?10, super_contributed = ?11, notes = ?12
+                 WHERE id = ?13",
+                params![
+                    entry.position_id,
+                    entry.financial_year,
+                    entry.week_ending.to_string(),
+                    entry.gross_pay,
+                    entry.tax_withheld,
+                    entry.net_pay,
+                    entry.hours_ordinary,
+                    entry.hours_overtime,
+                    entry.overtime_rate_multiplier,
+                    allowances_json,
+                    entry.super_contributed,
+                    entry.notes,
+                    id
+                ],
+            )?;
+            Ok(id)
+        } else {
+            // Insert new
+            self.conn.execute(
+                "INSERT INTO weekly_entries (
+                    position_id, financial_year, week_ending, gross_pay, tax_withheld,
+                    net_pay, hours_ordinary, hours_overtime, overtime_rate_multiplier,
+                    allowances, super_contributed, notes, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                params![
+                    entry.position_id,
+                    entry.financial_year,
+                    entry.week_ending.to_string(),
+                    entry.gross_pay,
+                    entry.tax_withheld,
+                    entry.net_pay,
+                    entry.hours_ordinary,
+                    entry.hours_overtime,
+                    entry.overtime_rate_multiplier,
+                    allowances_json,
+                    entry.super_contributed,
+                    entry.notes,
+                    now
+                ],
+            )?;
+            Ok(self.conn.last_insert_rowid())
+        }
+    }
+
+    pub fn delete_weekly_entry(&self, id: i64) -> SqlResult<()> {
+        self.conn.execute("DELETE FROM weekly_entries WHERE id = ?1", [id])?;
+        Ok(())
     }
 }
