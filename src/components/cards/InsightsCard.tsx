@@ -1,4 +1,3 @@
-import React from 'react';
 import { EarningsInsight, InsightCategory } from '../../types';
 import { AlertTriangle, TrendingUp, TrendingDown, Info, DollarSign, Clock } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
@@ -24,7 +23,7 @@ export function InsightsCard({ insight }: InsightsCardProps) {
       case InsightCategory.SkillsGap:
         return <Info className="w-5 h-5 text-yellow-500" />;
       default:
-        return <AlertTriangle className="w-5 h-5 text-gray-500" />;
+        return <AlertTriangle className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
@@ -54,17 +53,17 @@ export function InsightsCard({ insight }: InsightsCardProps) {
           {getIcon(insight.category)}
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium text-gray-900">{insight.title}</h3>
+              <h3 className="font-medium text-foreground">{insight.title}</h3>
               <Badge variant={getVariant(insight.category)}>
-                {(insight.confidence_level * 100).toFixed(0)}% confidence
+                {insight.confidence_level}% confidence
               </Badge>
             </div>
-            <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
+            <p className="text-sm text-muted-foreground mb-3">{insight.description}</p>
             {insight.data_points.length > 0 && (
-              <ul className="text-xs text-gray-500 space-y-1">
+              <ul className="text-xs text-muted-foreground space-y-1">
                 {insight.data_points.map((point, index) => (
                   <li key={index} className="flex items-center">
-                    <span className="w-1 h-1 bg-gray-400 rounded-full mr-2"></span>
+                    <span className="w-1 h-1 bg-muted-foreground rounded-full mr-2"></span>
                     {point}
                   </li>
                 ))}

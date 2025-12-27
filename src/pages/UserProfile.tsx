@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '../lib/tauri';
 import type { UserProfile as UserProfileType } from '../types';
-import { AustralianState, Qualification, EmploymentType } from '../types';
-import { Save, User } from 'lucide-react';
+import { AustralianState, Qualification, EmploymentType, DEFAULT_PROFILE } from '../types';
+import { Save, User, Database, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -12,40 +12,83 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 export function UserProfile() {
   const queryClient = useQueryClient();
+  const [formData, setFormData] = useState<UserProfileType | null>(null);
   
   const { data: profile, isLoading } = useQuery({
     queryKey: ['userProfile'],
     queryFn: () => invoke<UserProfileType>('get_user_profile'),
   });
 
+  useEffect(() => {
+    if (profile && !formData) {
+      setFormData(profile);
+    }
+  }, [profile, formData]);
+
+  const loadSampleDataMutation = useMutation({
+    mutationFn: () => invoke('load_sample_data'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['positions'] });
+      queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
+      alert('Sample data loaded successfully!');
+    },
+  });
+
+  const clearDataMutation = useMutation({
+    mutationFn: () => invoke('clear_all_data'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['positions'] });
+      queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
+      alert('All data cleared successfully!');
+    },
+  });
+
+  // Use the actual profile if it exists, otherwise use defaults
+  const safeProfile: UserProfileType = formData || profile || {
+    ...DEFAULT_PROFILE,
+    id: undefined,
+    created_at: new Date(),
+    updated_at: new Date(),
+  } as UserProfileType;
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleCareerPreferenceChange = (field: string, value: any) => {
+    setFormData(prev => prev ? {
+      ...prev,
+      career_preferences: {
+        ...prev.career_preferences,
+        [field]: value
+      }
+    } : null);
+  };
+
   const saveProfileMutation = useMutation({
     mutationFn: (profile: UserProfileType) => invoke('save_user_profile', { profile }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['userProfile']);
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      alert('Profile saved successfully!');
+    },
+    onError: (error) => {
+      alert('Failed to save profile. Please try again.');
+      console.error('Save profile error:', error);
     },
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
     
+    if (!formData) {
+      alert('No data to save');
+      return;
+    }
+
     const updatedProfile: UserProfileType = {
-      id: profile?.id,
-      first_name: formData.get('firstName') as string,
-      last_name: formData.get('lastName') as string,
-      date_of_birth: new Date(formData.get('dateOfBirth') as string),
-      state: formData.get('state') as AustralianState,
-      industry: formData.get('industry') as string,
-      highest_qualification: formData.get('qualification') as Qualification,
-      career_preferences: {
-        employment_type_preference: formData.get('employmentType') as EmploymentType,
-        fifo_tolerance: formData.get('fifoTolerance') as any,
-        travel_tolerance: formData.get('travelTolerance') as any,
-        overtime_appetite: formData.get('overtimeAppetite') as any,
-        privacy_acknowledged: formData.get('privacy') === 'on',
-        disclaimer_acknowledged: formData.get('disclaimer') === 'on',
-      },
-      created_at: profile?.created_at || new Date(),
+      ...formData,
       updated_at: new Date(),
     };
 
@@ -56,8 +99,8 @@ export function UserProfile() {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 bg-muted rounded w-1/3 mb-6"></div>
+          <div className="h-64 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -66,9 +109,42 @@ export function UserProfile() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">User Profile</h1>
-        <p className="text-gray-600">Manage your personal information and preferences</p>
+        <h1 className="text-2xl font-bold text-foreground">User Profile</h1>
+        <p className="text-muted-foreground">Manage your personal information and preferences</p>
       </div>
+
+      {/* Sample Data Controls */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Database className="w-5 h-5 mr-2" />
+            Test Data Controls
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Load realistic sample data to test the application, or clear all data to start fresh.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => loadSampleDataMutation.mutate()}
+              disabled={loadSampleDataMutation.isPending}
+            >
+              <Database className="w-4 h-4 mr-2" />
+              {loadSampleDataMutation.isPending ? 'Loading...' : 'Load Sample Data'}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => clearDataMutation.mutate()}
+              disabled={clearDataMutation.isPending}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {clearDataMutation.isPending ? 'Clearing...' : 'Clear All Data'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -85,16 +161,16 @@ export function UserProfile() {
                 <div>
                   <Label>First Name</Label>
                   <Input
-                    name="firstName"
-                    defaultValue={profile?.first_name}
+                    value={safeProfile.first_name || ''}
+                    onChange={(e) => handleInputChange('first_name', e.target.value)}
                     required
                   />
                 </div>
                 <div>
                   <Label>Last Name</Label>
                   <Input
-                    name="lastName"
-                    defaultValue={profile?.last_name}
+                    value={safeProfile.last_name || ''}
+                    onChange={(e) => handleInputChange('last_name', e.target.value)}
                     required
                   />
                 </div>
@@ -103,16 +179,16 @@ export function UserProfile() {
               <div>
                 <Label>Date of Birth</Label>
                 <Input
-                  name="dateOfBirth"
                   type="date"
-                  defaultValue={profile?.date_of_birth.toISOString().split('T')[0]}
+                  value={safeProfile.date_of_birth ? safeProfile.date_of_birth.toISOString().split('T')[0] : ''}
+                  onChange={(e) => handleInputChange('date_of_birth', new Date(e.target.value))}
                   required
                 />
               </div>
 
               <div>
                 <Label>State/Territory</Label>
-                <Select name="state" defaultValue={profile?.state}>
+                <Select value={safeProfile.state} onValueChange={(value) => handleInputChange('state', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -132,8 +208,8 @@ export function UserProfile() {
               <div>
                 <Label>Industry</Label>
                 <Input
-                  name="industry"
-                  defaultValue={profile?.industry}
+                  value={safeProfile.industry || ''}
+                  onChange={(e) => handleInputChange('industry', e.target.value)}
                   placeholder="e.g., Information Technology, Construction, Healthcare"
                   required
                 />
@@ -141,7 +217,7 @@ export function UserProfile() {
 
               <div>
                 <Label>Highest Qualification</Label>
-                <Select name="qualification" defaultValue={profile?.highest_qualification}>
+                <Select value={safeProfile.highest_qualification} onValueChange={(value) => handleInputChange('highest_qualification', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -169,7 +245,7 @@ export function UserProfile() {
             <CardContent className="space-y-4">
               <div>
                 <Label>Preferred Employment Type</Label>
-                <Select name="employmentType" defaultValue={profile?.career_preferences.employment_type_preference}>
+                <Select value={safeProfile.career_preferences.employment_type_preference} onValueChange={(value) => handleCareerPreferenceChange('employment_type_preference', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -183,7 +259,7 @@ export function UserProfile() {
 
               <div>
                 <Label>FIFO Tolerance</Label>
-                <Select name="fifoTolerance" defaultValue={profile?.career_preferences.fifo_tolerance}>
+                <Select value={safeProfile.career_preferences.fifo_tolerance} onValueChange={(value) => handleCareerPreferenceChange('fifo_tolerance', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -198,7 +274,7 @@ export function UserProfile() {
 
               <div>
                 <Label>Travel Tolerance</Label>
-                <Select name="travelTolerance" defaultValue={profile?.career_preferences.travel_tolerance}>
+                <Select value={safeProfile.career_preferences.travel_tolerance} onValueChange={(value) => handleCareerPreferenceChange('travel_tolerance', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -214,7 +290,7 @@ export function UserProfile() {
 
               <div>
                 <Label>Overtime Appetite</Label>
-                <Select name="overtimeAppetite" defaultValue={profile?.career_preferences.overtime_appetite}>
+                <Select value={safeProfile.career_preferences.overtime_appetite} onValueChange={(value) => handleCareerPreferenceChange('overtime_appetite', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -231,18 +307,18 @@ export function UserProfile() {
               <div className="space-y-2">
                 <label className="flex items-center space-x-2">
                   <input
-                    name="privacy"
                     type="checkbox"
-                    defaultChecked={profile?.career_preferences.privacy_acknowledged}
+                    checked={safeProfile.career_preferences.privacy_acknowledged}
+                    onChange={(e) => handleCareerPreferenceChange('privacy_acknowledged', e.target.checked)}
                   />
                   <span className="text-sm">I acknowledge the privacy policy</span>
                 </label>
 
                 <label className="flex items-center space-x-2">
                   <input
-                    name="disclaimer"
                     type="checkbox"
-                    defaultChecked={profile?.career_preferences.disclaimer_acknowledged}
+                    checked={safeProfile.career_preferences.disclaimer_acknowledged}
+                    onChange={(e) => handleCareerPreferenceChange('disclaimer_acknowledged', e.target.checked)}
                   />
                   <span className="text-sm">I understand this is not financial advice</span>
                 </label>

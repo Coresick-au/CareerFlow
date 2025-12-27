@@ -1,4 +1,3 @@
-import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { EarningsSnapshot } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -18,7 +17,7 @@ export function EarningsChart({ data }: EarningsChartProps) {
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: any; color: string; name: string; value: number }> }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg">
+        <div className="bg-card p-3 border rounded-lg shadow-lg">
           <p className="text-sm font-medium mb-2">{payload[0].payload.date}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>

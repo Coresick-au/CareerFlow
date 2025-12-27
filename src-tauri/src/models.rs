@@ -54,6 +54,7 @@ pub struct CompensationRecord {
     pub allowances: Vec<Allowance>,
     pub bonuses: Vec<Bonus>,
     pub super_contributions: SuperDetails,
+    pub tax_withheld: Option<f64>, // Annual tax withheld amount
     pub payslip_frequency: Option<PayslipFrequency>,
     pub effective_date: NaiveDate,
     pub confidence_score: f64, // 0-100 for fuzzy entries

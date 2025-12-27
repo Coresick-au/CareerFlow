@@ -21,10 +21,10 @@ export function Analysis() {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+          <div className="h-8 bg-muted rounded w-1/3 mb-6"></div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-64 bg-gray-200 rounded"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
+            <div className="h-64 bg-muted rounded"></div>
+            <div className="h-64 bg-muted rounded"></div>
           </div>
         </div>
       </div>
@@ -34,8 +34,8 @@ export function Analysis() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Career Analysis</h1>
-        <p className="text-gray-600">Deep insights into your earning potential and loyalty tax</p>
+        <h1 className="text-2xl font-bold text-foreground">Career Analysis</h1>
+        <p className="text-muted-foreground">Deep insights into your earning potential and loyalty tax</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -51,25 +51,25 @@ export function Analysis() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Current Total</p>
-                  <p className="text-xl font-bold">{formatCurrency(earnings?.current_total_compensation || 0)}</p>
+                  <p className="text-sm text-muted-foreground">Current Total</p>
+                  <p className="text-xl font-bold text-foreground">{formatCurrency(earnings?.current_total_compensation || 0)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Effective Hourly</p>
-                  <p className="text-xl font-bold">{formatCurrency(earnings?.current_effective_hourly_rate || 0)}/hr</p>
+                  <p className="text-sm text-muted-foreground">Effective Hourly</p>
+                  <p className="text-xl font-bold text-foreground">{formatCurrency(earnings?.current_effective_hourly_rate || 0)}/hr</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 mb-2">Market Position</p>
+                <p className="text-sm text-muted-foreground mb-2">Market Position</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Income Percentile</span>
+                  <span className="text-sm text-foreground">Income Percentile</span>
                   <Badge variant={earnings?.income_percentile && earnings.income_percentile > 75 ? 'default' : 
                                 earnings?.income_percentile && earnings.income_percentile > 50 ? 'secondary' : 'destructive'}>
                     {earnings?.income_percentile.toFixed(0)}th
                   </Badge>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div className="w-full bg-muted rounded-full h-2 mt-2">
                   <div 
                     className="bg-blue-600 h-2 rounded-full" 
                     style={{ width: `${earnings?.income_percentile || 0}%` }}
@@ -78,12 +78,12 @@ export function Analysis() {
               </div>
 
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Key Insights</p>
+                <p className="text-sm font-medium text-foreground mb-2">Key Insights</p>
                 <div className="space-y-2">
                   {earnings?.insights.slice(0, 3).map((insight, index) => (
-                    <div key={index} className="p-2 bg-gray-50 rounded text-sm">
-                      <p className="font-medium">{insight.title}</p>
-                      <p className="text-gray-600">{insight.description}</p>
+                    <div key={index} className="p-2 bg-muted rounded text-sm">
+                      <p className="font-medium text-foreground">{insight.title}</p>
+                      <p className="text-muted-foreground">{insight.description}</p>
                     </div>
                   ))}
                 </div>
@@ -104,29 +104,29 @@ export function Analysis() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Annual Impact</p>
-                  <p className="text-xl font-bold text-red-600">
+                  <p className="text-sm text-muted-foreground">Annual Impact</p>
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">
                     {formatCurrency(loyaltyTax?.annual_loyalty_tax[loyaltyTax.annual_loyalty_tax.length - 1]?.loyalty_tax_amount || 0)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Cumulative</p>
-                  <p className="text-xl font-bold text-red-600">
+                  <p className="text-sm text-muted-foreground">Cumulative</p>
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">
                     {formatCurrency(loyaltyTax?.cumulative_loyalty_tax || 0)}
                   </p>
                 </div>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Tenure Blocks</p>
+                <p className="text-sm font-medium text-foreground mb-2">Tenure Blocks</p>
                 <div className="space-y-2">
                   {loyaltyTax?.tenure_blocks.slice(0, 3).map((block, index) => (
-                    <div key={index} className="p-2 bg-gray-50 rounded text-sm">
+                    <div key={index} className="p-2 bg-muted rounded text-sm">
                       <div className="flex justify-between">
-                        <span className="font-medium">{block.employer_name}</span>
-                        <span className="text-red-600">{formatCurrency(block.loyalty_tax_impact)}</span>
+                        <span className="font-medium text-foreground">{block.employer_name}</span>
+                        <span className="text-red-600 dark:text-red-400">{formatCurrency(block.loyalty_tax_impact)}</span>
                       </div>
-                      <p className="text-gray-600">
+                      <p className="text-muted-foreground">
                         {block.years_of_service.toFixed(1)} years • {block.actual_progression.toFixed(1)}% vs {block.market_expected_progression.toFixed(1)}% expected
                       </p>
                     </div>
@@ -134,11 +134,11 @@ export function Analysis() {
                 </div>
               </div>
 
-              <div className="p-3 bg-yellow-50 rounded">
-                <p className="text-sm text-yellow-800">
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
                   <strong>Confidence Level:</strong> {((loyaltyTax?.confidence_level || 0) * 100).toFixed(0)}%
                 </p>
-                <p className="text-xs text-yellow-700 mt-1">
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
                   Based on available career history and market benchmarks
                 </p>
               </div>

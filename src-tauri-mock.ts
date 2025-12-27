@@ -5,7 +5,7 @@ export interface UserProfile {
   id?: number;
   first_name: string;
   last_name: string;
-  date_of_birth: string;
+  date_of_birth: Date;
   state: string;
   industry: string;
   highest_qualification: string;
@@ -17,8 +17,8 @@ export interface UserProfile {
     privacy_acknowledged: boolean;
     disclaimer_acknowledged: boolean;
   };
-  created_at: string;
-  updated_at: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface Position {
@@ -27,14 +27,14 @@ export interface Position {
   job_title: string;
   employment_type: string;
   location: string;
-  start_date: string;
-  end_date?: string;
+  start_date: Date;
+  end_date?: Date;
   seniority_level: string;
   core_responsibilities: string;
   tools_systems_skills: string[];
   achievements: string[];
-  created_at: string;
-  updated_at: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface CompensationRecord {
@@ -67,6 +67,7 @@ export interface CompensationRecord {
     additional_contributions: number;
     salary_sacrifice: number;
   };
+  tax_withheld?: number; // Annual tax withheld amount
   payslip_frequency?: string;
   effective_date: Date;
   confidence_score: number;
@@ -108,10 +109,269 @@ export interface EarningsAnalysis {
   }>;
 }
 
-// Mock data storage
-let mockProfile: UserProfile | null = null;
-let mockPositions: Position[] = [];
-let mockCompensation: CompensationRecord[] = [];
+// Mock data storage - now supports multiple users
+let mockProfiles: Record<string, any> = {};
+let mockPositions: Record<string, any[]> = {};
+let mockCompensation: Record<string, any[]> = {};
+
+// Helper to get current user ID from window context
+function getCurrentUserId(): string {
+  return (typeof window !== 'undefined' && (window as any).__currentUserId) || 'default';
+}
+
+// Helper to get user-specific data
+function getUserData() {
+  const userId = getCurrentUserId();
+  return {
+    profile: mockProfiles[userId] || null,
+    positions: mockPositions[userId] || [],
+    compensation: mockCompensation[userId] || [],
+  };
+}
+
+// Helper to set user-specific data
+function setUserData(data: { profile?: any; positions?: any[]; compensation?: any[] }) {
+  const userId = getCurrentUserId();
+  if (data.profile !== undefined) mockProfiles[userId] = data.profile;
+  if (data.positions !== undefined) mockPositions[userId] = data.positions;
+  if (data.compensation !== undefined) mockCompensation[userId] = data.compensation;
+}
+
+// Sample data for testing
+const sampleUserProfile: UserProfile = {
+  id: 1,
+  first_name: 'Alex',
+  last_name: 'Chen',
+  date_of_birth: new Date('1995-06-15'),
+  state: 'NSW',
+  industry: 'Information Technology',
+  highest_qualification: 'Bachelor',
+  career_preferences: {
+    employment_type_preference: 'Permanent',
+    fifo_tolerance: 'None',
+    travel_tolerance: 'National',
+    overtime_appetite: 'Moderate',
+    privacy_acknowledged: true,
+    disclaimer_acknowledged: true,
+  },
+  created_at: new Date('2024-01-01'),
+  updated_at: new Date('2024-12-01'),
+};
+
+const samplePositions: Position[] = [
+  {
+    id: 1,
+    employer_name: 'TechStart Solutions',
+    job_title: 'Graduate Software Developer',
+    employment_type: 'Permanent',
+    location: 'Sydney, NSW',
+    start_date: new Date('2017-02-01'),
+    end_date: new Date('2019-02-28'),
+    seniority_level: 'Entry',
+    core_responsibilities: 'Develop and maintain web applications using React and Node.js, participate in code reviews, write unit tests, and collaborate with senior developers on feature implementation.',
+    tools_systems_skills: ['JavaScript', 'React', 'Node.js', 'Git', 'Jira', 'AWS'],
+    achievements: [
+      'Reduced application load time by 30% through optimization',
+      'Implemented automated testing suite reducing bugs by 40%',
+      'Completed company\'s graduate development program with distinction'
+    ],
+    created_at: new Date('2017-02-01'),
+    updated_at: new Date('2019-02-28'),
+  },
+  {
+    id: 2,
+    employer_name: 'Digital Innovations Pty Ltd',
+    job_title: 'Software Developer',
+    employment_type: 'Permanent',
+    location: 'Melbourne, VIC',
+    start_date: new Date('2019-03-15'),
+    end_date: new Date('2021-06-30'),
+    seniority_level: 'Mid',
+    core_responsibilities: 'Lead development of microservices, mentor junior developers, design system architecture, and work closely with product managers to deliver features.',
+    tools_systems_skills: ['Python', 'Django', 'Docker', 'Kubernetes', 'PostgreSQL', 'Redis'],
+    achievements: [
+      'Led migration from monolith to microservices architecture',
+      'Improved system scalability to handle 10x traffic',
+      'Mentored 3 junior developers who all received promotions'
+    ],
+    created_at: new Date('2019-03-15'),
+    updated_at: new Date('2021-06-30'),
+  },
+  {
+    id: 3,
+    employer_name: 'Enterprise Systems Corp',
+    job_title: 'Senior Software Engineer',
+    employment_type: 'Permanent',
+    location: 'Sydney, NSW',
+    start_date: new Date('2021-07-01'),
+    end_date: new Date('2023-12-31'),
+    seniority_level: 'Senior',
+    core_responsibilities: 'Architect and implement complex systems, lead technical decisions, conduct performance reviews, and represent the team in cross-functional meetings.',
+    tools_systems_skills: ['Java', 'Spring Boot', 'Microservices', 'GraphQL', 'MongoDB', 'Elasticsearch'],
+    achievements: [
+      'Designed and implemented real-time data processing system handling 1M+ events/day',
+      'Reduced infrastructure costs by 25% through optimization',
+      'Promoted to tech lead role within 18 months'
+    ],
+    created_at: new Date('2021-07-01'),
+    updated_at: new Date('2023-12-31'),
+  },
+  {
+    id: 4,
+    employer_name: 'CloudTech Australia',
+    job_title: 'Senior Full Stack Developer',
+    employment_type: 'Permanent',
+    location: 'Sydney, NSW',
+    start_date: new Date('2024-01-15'),
+    end_date: undefined,
+    seniority_level: 'Senior',
+    core_responsibilities: 'Lead full-stack development initiatives, architect cloud-native solutions, and drive technical excellence across the engineering team.',
+    tools_systems_skills: ['TypeScript', 'Next.js', 'AWS', 'Terraform', 'Serverless', 'DynamoDB'],
+    achievements: [
+      'Successfully launched new SaaS product serving 5000+ users',
+      'Implemented CI/CD pipeline reducing deployment time by 60%',
+      'Established coding standards and best practices adopted company-wide'
+    ],
+    created_at: new Date('2024-01-15'),
+    updated_at: new Date('2024-12-01'),
+  },
+];
+
+const sampleCompensation: CompensationRecord[] = [
+  {
+    id: 1,
+    position_id: 1,
+    entry_type: 'Exact',
+    pay_type: 'Salary',
+    base_rate: 65000,
+    standard_weekly_hours: 38,
+    overtime: {
+      frequency: 'None',
+      rate_multiplier: 1.5,
+      average_hours_per_week: 0,
+      annual_hours: 0,
+    },
+    allowances: [
+      { name: 'Mobile Phone', amount: 50, frequency: 'Monthly', taxable: false },
+      { name: 'Professional Development', amount: 1000, frequency: 'Annually', taxable: false },
+    ],
+    bonuses: [
+      { name: 'Performance Bonus', amount: 2000, date_awarded: new Date('2018-06-30'), taxable: true },
+    ],
+    super_contributions: {
+      contribution_rate: 9.5,
+      additional_contributions: 0,
+      salary_sacrifice: 0,
+    },
+    tax_withheld: 12000,
+    payslip_frequency: 'Monthly',
+    effective_date: new Date('2017-02-01'),
+    confidence_score: 0.95,
+    notes: 'Base graduate salary in Sydney market',
+    created_at: new Date('2017-02-01'),
+  },
+  {
+    id: 2,
+    position_id: 2,
+    entry_type: 'Exact',
+    pay_type: 'Salary',
+    base_rate: 85000,
+    standard_weekly_hours: 38,
+    overtime: {
+      frequency: 'Occasional',
+      rate_multiplier: 1.5,
+      average_hours_per_week: 2,
+      annual_hours: 104,
+    },
+    allowances: [
+      { name: 'Mobile Phone', amount: 75, frequency: 'Monthly', taxable: false },
+      { name: 'Home Office', amount: 1500, frequency: 'Annually', taxable: false },
+    ],
+    bonuses: [
+      { name: 'Performance Bonus', amount: 4000, date_awarded: new Date('2020-06-30'), taxable: true },
+      { name: 'Project Completion', amount: 2500, date_awarded: new Date('2021-01-15'), taxable: true },
+    ],
+    super_contributions: {
+      contribution_rate: 9.5,
+      additional_contributions: 5000,
+      salary_sacrifice: 0,
+    },
+    tax_withheld: 16000,
+    payslip_frequency: 'Monthly',
+    effective_date: new Date('2019-03-15'),
+    confidence_score: 0.95,
+    notes: 'Promotion to mid-level with market adjustment',
+    created_at: new Date('2019-03-15'),
+  },
+  {
+    id: 3,
+    position_id: 3,
+    entry_type: 'Exact',
+    pay_type: 'Salary',
+    base_rate: 120000,
+    standard_weekly_hours: 38,
+    overtime: {
+      frequency: 'Frequent',
+      rate_multiplier: 1.5,
+      average_hours_per_week: 4,
+      annual_hours: 208,
+    },
+    allowances: [
+      { name: 'Mobile Phone', amount: 100, frequency: 'Monthly', taxable: false },
+      { name: 'Vehicle Allowance', amount: 300, frequency: 'Monthly', taxable: true },
+      { name: 'Professional Development', amount: 3000, frequency: 'Annually', taxable: false },
+    ],
+    bonuses: [
+      { name: 'Performance Bonus', amount: 10000, date_awarded: new Date('2022-06-30'), taxable: true },
+      { name: 'Team Leadership Bonus', amount: 5000, date_awarded: new Date('2023-01-15'), taxable: true },
+    ],
+    super_contributions: {
+      contribution_rate: 10.5,
+      additional_contributions: 10000,
+      salary_sacrifice: 5000,
+    },
+    tax_withheld: 28000,
+    payslip_frequency: 'Monthly',
+    effective_date: new Date('2021-07-01'),
+    confidence_score: 0.95,
+    notes: 'Senior role with leadership responsibilities',
+    created_at: new Date('2021-07-01'),
+  },
+  {
+    id: 4,
+    position_id: 4,
+    entry_type: 'Exact',
+    pay_type: 'Salary',
+    base_rate: 140000,
+    standard_weekly_hours: 38,
+    overtime: {
+      frequency: 'Frequent',
+      rate_multiplier: 1.5,
+      average_hours_per_week: 3,
+      annual_hours: 156,
+    },
+    allowances: [
+      { name: 'Mobile Phone', amount: 150, frequency: 'Monthly', taxable: false },
+      { name: 'Home Office Stipend', amount: 200, frequency: 'Monthly', taxable: false },
+      { name: 'Professional Development', amount: 5000, frequency: 'Annually', taxable: false },
+      { name: 'Health & Wellness', amount: 1000, frequency: 'Annually', taxable: false },
+    ],
+    bonuses: [
+      { name: 'Sign-on Bonus', amount: 10000, date_awarded: new Date('2024-01-15'), taxable: true },
+    ],
+    super_contributions: {
+      contribution_rate: 11,
+      additional_contributions: 15000,
+      salary_sacrifice: 10000,
+    },
+    tax_withheld: 34000,
+    payslip_frequency: 'Monthly',
+    effective_date: new Date('2024-01-15'),
+    confidence_score: 1.0,
+    notes: 'Current role with comprehensive benefits package',
+    created_at: new Date('2024-01-15'),
+  },
+];
 
 // Mock Tauri invoke function
 export async function invoke<T>(command: string, args?: any): Promise<T> {
@@ -119,95 +379,121 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
   
   switch (command) {
     case 'get_user_profile':
-      return mockProfile as T;
+      return getUserData().profile as T;
       
     case 'save_user_profile':
-      mockProfile = { 
-        ...args, 
-        id: 1, 
-        created_at: new Date(), 
-        updated_at: new Date() 
-      };
+      setUserData({ 
+        profile: { 
+          ...args, 
+          id: 1, 
+          created_at: new Date(), 
+          updated_at: new Date() 
+        }
+      });
       return undefined as T;
       
     case 'get_positions':
-      return mockPositions as T;
+      return getUserData().positions as T;
       
     case 'save_position':
+      const currentData = getUserData();
       const newPosition = { ...args, id: Date.now(), created_at: new Date(), updated_at: new Date() };
-      mockPositions.push(newPosition);
+      setUserData({ positions: [...currentData.positions, newPosition] });
       return newPosition.id as T;
       
     case 'delete_position':
-      mockPositions = mockPositions.filter(p => p.id !== args);
+      const posData = getUserData();
+      setUserData({ 
+        positions: posData.positions.filter(p => p.id !== args) 
+      });
       return undefined as T;
       
     case 'get_compensation_records':
-      return mockCompensation.filter(c => c.position_id === args) as T;
+      const compData = getUserData();
+      return compData.compensation.filter(c => c.position_id === args) as T;
       
     case 'save_compensation_record':
+      const compCurrent = getUserData();
       const newRecord = { ...args, id: Date.now(), created_at: new Date() };
-      mockCompensation.push(newRecord);
+      setUserData({ 
+        compensation: [...compCurrent.compensation, newRecord] 
+      });
       return newRecord.id as T;
       
     case 'calculate_earnings_analysis':
-      // Return mock analysis data
+      // Calculate earnings from actual data
+      const userCompData = getUserData();
+      const currentCompensation = userCompData.compensation.find((c: any) => c.position_id === 4); // Current position
+      const totalCompensation = currentCompensation ? 
+        currentCompensation.base_rate + 
+        (currentCompensation.allowances.reduce((sum: number, a: any) => sum + (a.frequency === 'Monthly' ? a.amount * 12 : a.frequency === 'Annually' ? a.amount : 0), 0)) +
+        (currentCompensation.bonuses.reduce((sum: number, b: any) => sum + b.amount, 0) / 2) : // Average annual bonus
+        140000;
+      
+      const standardHours = currentCompensation ? currentCompensation.standard_weekly_hours * 52 : 1976;
+      const overtimeHours = currentCompensation ? currentCompensation.overtime.annual_hours || 0 : 156;
+      const totalHours = standardHours + overtimeHours;
+      const effectiveHourlyRate = totalCompensation / totalHours;
+      
+      // Calculate earnings progression from compensation records
+      const earningsOverTime = userCompData.compensation.map((c: any) => ({
+        date: new Date(c.effective_date),
+        base_annual: c.base_rate,
+        actual_annual: c.base_rate + 
+          (c.allowances.reduce((sum: number, a: any) => sum + (a.frequency === 'Monthly' ? a.amount * 12 : a.frequency === 'Annually' ? a.amount : 0), 0)) +
+          (c.bonuses.reduce((sum: number, b: any) => sum + b.amount, 0)),
+        total_with_super: c.base_rate * (1 + c.super_contributions.contribution_rate / 100) + 
+          c.super_contributions.additional_contributions + c.super_contributions.salary_sacrifice,
+        effective_hourly_rate: c.base_rate / (c.standard_weekly_hours * 52 + (c.overtime.annual_hours || 0))
+      }));
+
       return {
-        current_total_compensation: 120000,
-        current_effective_hourly_rate: 65.0,
-        income_percentile: 75,
-        loyalty_tax_annual: 8000,
-        loyalty_tax_cumulative: 24000,
-        earnings_over_time: [
-          {
-            date: new Date('2020-01-01'),
-            base_annual: 90000,
-            actual_annual: 95000,
-            total_with_super: 105450,
-            effective_hourly_rate: 50.0
-          },
-          {
-            date: new Date('2022-01-01'),
-            base_annual: 100000,
-            actual_annual: 108000,
-            total_with_super: 119880,
-            effective_hourly_rate: 56.84
-          },
-          {
-            date: new Date('2024-01-01'),
-            base_annual: 120000,
-            actual_annual: 130000,
-            total_with_super: 144300,
-            effective_hourly_rate: 65.0
-          }
-        ],
+        current_total_compensation: totalCompensation,
+        current_effective_hourly_rate: effectiveHourlyRate,
+        income_percentile: 78, // Based on $140k total comp for senior dev in Sydney
+        loyalty_tax_annual: 6000,
+        loyalty_tax_cumulative: 18000,
+        earnings_over_time: earningsOverTime,
         hours_vs_earnings: [
-          { year: 2020, total_hours_worked: 1900, total_earnings: 95000, overtime_percentage: 5 },
-          { year: 2021, total_hours_worked: 1950, total_earnings: 98000, overtime_percentage: 7 },
-          { year: 2022, total_hours_worked: 2000, total_earnings: 108000, overtime_percentage: 10 },
-          { year: 2023, total_hours_worked: 2050, total_earnings: 118000, overtime_percentage: 12 },
-          { year: 2024, total_hours_worked: 2000, total_earnings: 130000, overtime_percentage: 8 }
+          { year: 2017, total_hours_worked: 1976, total_earnings: 77000, overtime_percentage: 0 },
+          { year: 2018, total_hours_worked: 1976, total_earnings: 77000, overtime_percentage: 0 },
+          { year: 2019, total_hours_worked: 2080, total_earnings: 95000, overtime_percentage: 5 },
+          { year: 2020, total_hours_worked: 2080, total_earnings: 95000, overtime_percentage: 5 },
+          { year: 2021, total_hours_worked: 2184, total_earnings: 108000, overtime_percentage: 5 },
+          { year: 2022, total_hours_worked: 2296, total_earnings: 135000, overtime_percentage: 10 },
+          { year: 2023, total_hours_worked: 2296, total_earnings: 135000, overtime_percentage: 10 },
+          { year: 2024, total_hours_worked: 2244, total_earnings: 158000, overtime_percentage: 8 }
         ],
         super_trajectory: [
-          { financial_year: '2020-21', employer_contributions: 10260, personal_contributions: 5000, total_super_balance: 85000 },
-          { financial_year: '2021-22', employer_contributions: 10710, personal_contributions: 5000, total_super_balance: 100710 },
-          { financial_year: '2022-23', employer_contributions: 11880, personal_contributions: 5000, total_super_balance: 117590 },
-          { financial_year: '2023-24', employer_contributions: 12980, personal_contributions: 5000, total_super_balance: 135570 }
+          { financial_year: '2017-18', employer_contributions: 6175, personal_contributions: 0, total_super_balance: 6175 },
+          { financial_year: '2018-19', employer_contributions: 6175, personal_contributions: 0, total_super_balance: 13000 },
+          { financial_year: '2019-20', employer_contributions: 8075, personal_contributions: 5000, total_super_balance: 26075 },
+          { financial_year: '2020-21', employer_contributions: 8075, personal_contributions: 5000, total_super_balance: 39150 },
+          { financial_year: '2021-22', employer_contributions: 10260, personal_contributions: 5000, total_super_balance: 54410 },
+          { financial_year: '2022-23', employer_contributions: 12600, personal_contributions: 10000, total_super_balance: 77010 },
+          { financial_year: '2023-24', employer_contributions: 15400, personal_contributions: 15000, total_super_balance: 107410 }
         ],
         insights: [
           {
-            category: 'LoyaltyTax',
-            title: 'Potential $24,000 missed over 3 years',
-            description: 'Your salary growth has been 3% below market average for your role and experience level.',
-            confidence_level: 85,
-            data_points: ['Market rate: $125,000', 'Current rate: $120,000', '3-year tenure']
+            category: 'CareerProgression',
+            title: 'Strong career growth: 115% salary increase over 7 years',
+            description: 'Your career progression from graduate to senior developer shows above-average growth with strategic job changes every 2-3 years.',
+            confidence_level: 95,
+            data_points: ['Started: $65k (2017)', 'Current: $140k (2024)', '4 positions, 3 employers']
           },
           {
-            category: 'OvertimeHeavy',
-            title: '10% of income from overtime',
-            description: 'You\'re earning $13,000 annually from overtime. Consider negotiating a higher base salary.',
-            confidence_level: 95,
-            data_points: ['Base: $120,000', 'Overtime: $13,000', '200 hours overtime/year']
+            category: 'SuperHealth',
+            title: 'Super balance on track: $107k by 2024',
+            description: 'Your super contributions including salary sacrifice have built a healthy retirement fund above the national average.',
+            confidence_level: 90,
+            data_points: ['Employer: $15,400/year', 'Personal: $15,000/year', 'Balance: $107,410']
+          },
+          {
+            category: 'OvertimeBalance',
+            title: 'Moderate overtime: 8% of total earnings',
+            description: 'Your overtime is balanced but consider if the $18k annually could be better converted to base salary in negotiations.',
+            confidence_level: 85,
+            data_points: ['Base: $140k', 'Overtime: $18k', '156 hours/year']
           }
         ]
       } as T;
@@ -226,6 +512,7 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
       } as T;
       
     case 'generate_resume_export':
+      const resumeData = getUserData();
       return {
         profile_summary: {
           name: 'Test User',
@@ -235,7 +522,7 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
           experience_years: 5,
           seniority_level: 'Senior'
         },
-        career_timeline: mockPositions.map(p => ({
+        career_timeline: resumeData.positions.map((p: any) => ({
           employer: p.employer_name,
           title: p.job_title,
           duration: '2 years',
@@ -243,36 +530,59 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
           achievements: p.achievements,
           skills_used: p.tools_systems_skills
         })),
-        achievements: mockPositions.flatMap(p => p.achievements),
-        skills_and_tools: mockPositions.flatMap(p => p.tools_systems_skills),
+        achievements: resumeData.positions.flatMap((p: any) => p.achievements),
+        skills_and_tools: resumeData.positions.flatMap((p: any) => p.tools_systems_skills),
         compensation_summary: {
           current_base: 120000,
           current_total: 130000,
           career_earnings_total: 550000,
           average_annual_increase: 0.06
         },
-        target_preferences: mockProfile?.career_preferences || {}
+        target_preferences: resumeData.profile?.career_preferences || {}
       } as T;
       
     case 'export_all_data':
+      const exportData = getUserData();
       return {
-        user_profile: mockProfile,
-        positions: mockPositions,
-        compensation_records: mockCompensation,
+        user_profile: exportData.profile,
+        positions: exportData.positions,
+        compensation_records: exportData.compensation,
         export_date: new Date().toISOString(),
         version: '1.0.0'
       } as T;
       
     case 'import_all_data':
-      const { user_profile, positions, compensation_records } = args;
-      if (user_profile) mockProfile = user_profile;
-      if (positions) mockPositions = positions;
-      if (compensation_records) mockCompensation = compensation_records;
+      const { user_profile, positions, compensation_records } = args || {};
+      const importData = getUserData();
+      if (user_profile) importData.profile = user_profile;
+      if (positions) importData.positions = positions;
+      if (compensation_records) importData.compensation = compensation_records;
+      setUserData(importData);
       return { success: true, imported: { 
         profile: !!user_profile, 
         positions: positions?.length || 0, 
         compensation: compensation_records?.length || 0 
       }} as T;
+      
+    case 'load_sample_data':
+      setUserData({
+        profile: sampleUserProfile,
+        positions: samplePositions,
+        compensation: sampleCompensation,
+      });
+      return { success: true, loaded: {
+        profile: !!sampleUserProfile,
+        positions: samplePositions.length,
+        compensation: sampleCompensation.length
+      }} as T;
+      
+    case 'clear_all_data':
+      setUserData({
+        profile: null,
+        positions: [],
+        compensation: [],
+      });
+      return { success: true } as T;
       
     default:
       throw new Error(`Unknown command: ${command}`);

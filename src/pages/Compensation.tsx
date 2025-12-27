@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '../lib/tauri';
 import { Position, CompensationRecord, CompensationEntryType } from '../types';
-import { Edit, Trash2, Clock, DollarSign, Briefcase } from 'lucide-react';
+import { Edit, Trash2, Clock, DollarSign, Briefcase, Calendar } from 'lucide-react';
 import { FuzzyCompensationForm } from '../components/forms/FuzzyCompensationForm';
 import { ExactCompensationForm } from '../components/forms/ExactCompensationForm';
+import { YearlyWageForm } from '../components/forms/YearlyWageForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
-type EntryMode = 'fuzzy' | 'exact' | null;
+type EntryMode = 'fuzzy' | 'exact' | 'yearly' | null;
 
 export function Compensation() {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
@@ -63,8 +64,8 @@ export function Compensation() {
     const fullRecord = {
       ...record,
       position_id: selectedPosition!.id!,
-      entry_type: entryMode === 'fuzzy' ? 'Fuzzy' : 'Exact',
-      created_at: new Date().toISOString(),
+      entry_type: entryMode === 'fuzzy' ? CompensationEntryType.Fuzzy : CompensationEntryType.Exact,
+      created_at: new Date(),
     };
     saveRecordMutation.mutate(fullRecord);
   };
@@ -101,8 +102,8 @@ export function Compensation() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Compensation Management</h1>
-        <p className="text-gray-600">Track your earnings with fuzzy estimates or exact payslip data</p>
+        <h1 className="text-2xl font-bold text-foreground">Compensation Management</h1>
+        <p className="text-muted-foreground">Track your earnings with fuzzy estimates or exact payslip data</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -119,13 +120,13 @@ export function Compensation() {
                   onClick={() => setSelectedPosition(position)}
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${
                     selectedPosition?.id === position.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:bg-gray-50'
+                      ? 'border-blue-500 bg-blue-500 dark:bg-blue-600'
+                      : 'border-border hover:bg-muted'
                   }`}
                 >
                   <div className="font-medium">{position.job_title}</div>
-                  <div className="text-sm text-gray-600">{position.employer_name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-sm text-muted-foreground">{position.employer_name}</div>
+                  <div className="text-xs text-muted-foreground">
                     {position.start_date.toLocaleDateString()} - 
                     {position.end_date?.toLocaleDateString() || 'Present'}
                   </div>
@@ -153,6 +154,14 @@ export function Compensation() {
                     Quick Estimate
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={() => handleAddRecord('yearly')}
+                    className="text-sm"
+                  >
+                    <Calendar className="w-4 h-4 mr-1" />
+                    Yearly Summary
+                  </Button>
+                  <Button
                     onClick={() => handleAddRecord('exact')}
                     className="text-sm"
                   >
@@ -171,16 +180,16 @@ export function Compensation() {
                           <div className="flex items-center gap-2 mb-2">
                             <span className={`px-2 py-1 text-xs rounded-full ${
                               record.entry_type === 'Fuzzy' 
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                             }`}>
                               {record.entry_type}
                             </span>
-                            <span className="text-sm text-gray-600">
+                            <span className="text-sm text-muted-foreground">
                               Effective: {record.effective_date.toLocaleDateString()}
                             </span>
                             {record.entry_type === 'Fuzzy' && (
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-muted-foreground">
                                 Confidence: {record.confidence_score}%
                               </span>
                             )}
@@ -188,33 +197,49 @@ export function Compensation() {
                           
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <span className="text-gray-600">Base: </span>
+                              <span className="text-muted-foreground">Base: </span>
                               <span className="font-medium">
                                 {record.pay_type === 'Salary' ? 'Salary' : 'Hourly'} - 
                                 {formatCurrency(record.base_rate)}
                               </span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Annual Total: </span>
+                              <span className="text-muted-foreground">Annual Total: </span>
                               <span className="font-medium">
                                 {formatCurrency(calculateAnnualEarnings(record))}
                               </span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Hours/week: </span>
+                              <span className="text-muted-foreground">Hours/week: </span>
                               <span className="font-medium">{record.standard_weekly_hours}</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">Overtime: </span>
+                              <span className="text-muted-foreground">Overtime: </span>
                               <span className="font-medium">
                                 {record.overtime.frequency} ({record.overtime.average_hours_per_week}h/week)
                               </span>
                             </div>
+                            {record.tax_withheld && (
+                              <>
+                                <div>
+                                  <span className="text-muted-foreground">Tax Withheld: </span>
+                                  <span className="font-medium">
+                                    {formatCurrency(record.tax_withheld)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Net Income: </span>
+                                  <span className="font-medium text-green-600 dark:text-green-400">
+                                    {formatCurrency(calculateAnnualEarnings(record) - record.tax_withheld)}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           {record.allowances.length > 0 && (
                             <div className="mt-2 text-sm">
-                              <span className="text-gray-600">Allowances: </span>
+                              <span className="text-muted-foreground">Allowances: </span>
                               <span className="font-medium">
                                 {record.allowances.map(a => a.name).join(', ')}
                               </span>
@@ -246,8 +271,8 @@ export function Compensation() {
                 {records.length === 0 && (
                   <Card>
                     <CardContent className="pt-6">
-                      <div className="text-center text-gray-500">
-                        <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <div className="text-center text-muted-foreground">
+                        <DollarSign className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                         <p>No compensation records yet</p>
                         <p className="text-sm">Add your first record to get started</p>
                       </div>
@@ -259,8 +284,8 @@ export function Compensation() {
           ) : (
             <Card>
               <CardContent className="pt-6">
-                <div className="text-center text-gray-500">
-                  <Briefcase className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <div className="text-center text-muted-foreground">
+                  <Briefcase className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                   <p>Select a position to manage compensation</p>
                 </div>
               </CardContent>
@@ -274,13 +299,21 @@ export function Compensation() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingRecord ? 'Edit' : 'Add'} {entryMode === 'fuzzy' ? 'Quick Estimate' : 'Exact Payslip'} 
+              {editingRecord ? 'Edit' : 'Add'} {entryMode === 'fuzzy' ? 'Quick Estimate' : entryMode === 'yearly' ? 'Yearly Summary' : 'Exact Payslip'} 
               {entryMode && ' for ' + selectedPosition?.job_title}
             </DialogTitle>
           </DialogHeader>
           
           {entryMode === 'fuzzy' && (
             <FuzzyCompensationForm
+              record={editingRecord}
+              onSave={handleSaveRecord}
+              onCancel={() => setDialogOpen(false)}
+            />
+          )}
+          
+          {entryMode === 'yearly' && (
+            <YearlyWageForm
               record={editingRecord}
               onSave={handleSaveRecord}
               onCancel={() => setDialogOpen(false)}

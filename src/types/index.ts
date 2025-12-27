@@ -128,6 +128,25 @@ export interface CareerPreferences {
   disclaimer_acknowledged: boolean;
 }
 
+export const DEFAULT_CAREER_PREFERENCES: CareerPreferences = {
+  employment_type_preference: EmploymentType.Permanent,
+  fifo_tolerance: FIFOTolerance.None,
+  travel_tolerance: TravelTolerance.None,
+  overtime_appetite: OvertimeAppetite.None,
+  privacy_acknowledged: false,
+  disclaimer_acknowledged: false,
+};
+
+export const DEFAULT_PROFILE: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'> = {
+  first_name: '',
+  last_name: '',
+  date_of_birth: new Date(),
+  state: AustralianState.NSW,
+  industry: '',
+  highest_qualification: Qualification.HighSchool,
+  career_preferences: DEFAULT_CAREER_PREFERENCES,
+};
+
 export interface Position {
   id?: number;
   employer_name: string;
@@ -155,6 +174,7 @@ export interface CompensationRecord {
   allowances: Allowance[];
   bonuses: Bonus[];
   super_contributions: SuperDetails;
+  tax_withheld?: number; // Annual tax withheld amount
   payslip_frequency?: PayslipFrequency;
   effective_date: Date;
   confidence_score: number;

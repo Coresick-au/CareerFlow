@@ -1,4 +1,3 @@
-import React from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { HoursEarningsPoint } from '../../types';
 import { formatCurrency } from '../../lib/utils';
@@ -19,7 +18,7 @@ export function HoursEarningsChart({ data }: HoursEarningsChartProps) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg">
+        <div className="bg-card p-3 border rounded-lg shadow-lg">
           <p className="text-sm font-medium mb-2">Year: {data.year}</p>
           <p className="text-sm">Hours Worked: {data.hours.toLocaleString()}</p>
           <p className="text-sm">Earnings: {formatCurrency(data.earnings)}</p>
@@ -30,12 +29,7 @@ export function HoursEarningsChart({ data }: HoursEarningsChartProps) {
     return null;
   };
 
-  const getDotColor = (overtimePercent: number) => {
-    if (overtimePercent > 20) return '#ef4444'; // red for high overtime
-    if (overtimePercent > 10) return '#f59e0b'; // amber for moderate
-    return '#10b981'; // green for low
-  };
-
+  
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ScatterChart data={chartData}>
@@ -57,8 +51,8 @@ export function HoursEarningsChart({ data }: HoursEarningsChartProps) {
         />
         <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
         <Scatter 
-          dataKey="earnings" 
-          fill={(entry: any) => getDotColor(entry.overtimePercent)}
+          dataKey="earnings"
+          fill="#3b82f6"
         />
       </ScatterChart>
     </ResponsiveContainer>

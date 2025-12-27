@@ -77,8 +77,8 @@ Please generate the resume content now.`;
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 bg-muted rounded w-1/3 mb-6"></div>
+          <div className="h-64 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -87,7 +87,7 @@ Please generate the resume content now.`;
   if (!resumeData) {
     return (
       <div className="p-6">
-        <div className="text-center text-gray-500">
+        <div className="text-center text-muted-foreground">
           <FileText className="w-12 h-12 mx-auto mb-2" />
           <p>No career data available</p>
           <p className="text-sm">Add your career history first</p>
@@ -99,8 +99,8 @@ Please generate the resume content now.`;
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Resume Export</h1>
-        <p className="text-gray-600">Generate structured exports for ChatGPT-powered resume creation</p>
+        <h1 className="text-2xl font-bold text-foreground">Resume Export</h1>
+        <p className="text-muted-foreground">Generate structured exports for ChatGPT-powered resume creation</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -111,7 +111,7 @@ Please generate the resume content now.`;
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Resume Type</label>
+              <label className="text-sm font-medium text-foreground">Resume Type</label>
               <Select value={selectedType} onValueChange={(value: ResumeType) => setSelectedType(value)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -147,7 +147,7 @@ Please generate the resume content now.`;
               </Button>
             </div>
 
-            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
+            <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
               <p className="font-medium mb-1">How to use:</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Download the JSON file</li>

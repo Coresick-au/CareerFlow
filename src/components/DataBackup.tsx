@@ -87,8 +87,8 @@ export function DataBackup() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">Export Data</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-sm font-medium text-foreground">Export Data</h3>
+          <p className="text-sm text-muted-foreground">
             Download all your career data as a JSON file for safekeeping.
           </p>
           <Button 
@@ -102,8 +102,8 @@ export function DataBackup() {
         </div>
 
         <div className="border-t pt-4 space-y-2">
-          <h3 className="text-sm font-medium">Import Data</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-sm font-medium text-foreground">Import Data</h3>
+          <p className="text-sm text-muted-foreground">
             Restore your data from a previously exported JSON file.
             This will replace all existing data.
           </p>

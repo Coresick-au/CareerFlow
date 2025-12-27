@@ -7,20 +7,26 @@ import { Compensation } from './pages/Compensation';
 import { Analysis } from './pages/Analysis';
 import { ResumeExport } from './pages/ResumeExport';
 import { Settings } from './pages/Settings';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { UserProvider } from './contexts/UserContext';
 
 function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/profile" element={<UserProfile />} />
-        <Route path="/career" element={<CareerTimeline />} />
-        <Route path="/compensation" element={<Compensation />} />
-        <Route path="/analysis" element={<Analysis />} />
-        <Route path="/resume" element={<ResumeExport />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
-    </Layout>
+    <ThemeProvider>
+      <UserProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/career" element={<CareerTimeline />} />
+            <Route path="/compensation" element={<Compensation />} />
+            <Route path="/analysis" element={<Analysis />} />
+            <Route path="/resume" element={<ResumeExport />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </Layout>
+      </UserProvider>
+    </ThemeProvider>
   );
 }
 

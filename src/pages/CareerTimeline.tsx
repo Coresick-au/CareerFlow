@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '../lib/tauri';
 import { Position, SeniorityLevel, EmploymentType } from '../types';
-import { Plus, Edit, Trash2, Briefcase, MapPin, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Briefcase, MapPin, Calendar, Database, Trash2 as ClearAll } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
@@ -19,6 +19,26 @@ export function CareerTimeline() {
   const { data: positions = [] } = useQuery({
     queryKey: ['positions'],
     queryFn: () => invoke<Position[]>('get_positions'),
+  });
+
+  const loadSampleDataMutation = useMutation({
+    mutationFn: () => invoke('load_sample_data'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['positions'] });
+      queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
+      alert('Sample data loaded successfully!');
+    },
+  });
+
+  const clearDataMutation = useMutation({
+    mutationFn: () => invoke('clear_all_data'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['positions'] });
+      queryClient.invalidateQueries({ queryKey: ['compensationRecords'] });
+      alert('All data cleared successfully!');
+    },
   });
 
   const savePositionMutation = useMutation({
@@ -86,13 +106,31 @@ export function CareerTimeline() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Career Timeline</h1>
-          <p className="text-gray-600">Your professional journey and achievements</p>
+          <h1 className="text-2xl font-bold text-foreground">Career Timeline</h1>
+          <p className="text-muted-foreground">Your professional journey and achievements</p>
         </div>
-        <Button onClick={handleAddPosition}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Position
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => loadSampleDataMutation.mutate()}
+            disabled={loadSampleDataMutation.isPending}
+          >
+            <Database className="w-4 h-4 mr-2" />
+            {loadSampleDataMutation.isPending ? 'Loading...' : 'Load Sample Data'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => clearDataMutation.mutate()}
+            disabled={clearDataMutation.isPending}
+          >
+            <ClearAll className="w-4 h-4 mr-2" />
+            {clearDataMutation.isPending ? 'Clearing...' : 'Clear All'}
+          </Button>
+          <Button onClick={handleAddPosition}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Position
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -102,32 +140,32 @@ export function CareerTimeline() {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <Briefcase className="w-4 h-4 text-gray-500" />
+                    <Briefcase className="w-4 h-4 text-muted-foreground" />
                     <h3 className="font-semibold text-lg">{position.job_title}</h3>
                     <Badge variant="secondary">{position.seniority_level}</Badge>
                     <Badge variant="outline">{position.employment_type}</Badge>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                     <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       {position.location}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
                       {position.start_date.toLocaleDateString()} - {position.end_date?.toLocaleDateString() || 'Present'}
-                      <span className="text-gray-400">({formatDuration(position.start_date, position.end_date)})</span>
+                      <span className="text-muted-foreground">({formatDuration(position.start_date, position.end_date)})</span>
                     </div>
                   </div>
 
                   <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Responsibilities</p>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{position.core_responsibilities}</p>
+                    <p className="text-sm font-medium text-foreground mb-1">Responsibilities</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{position.core_responsibilities}</p>
                   </div>
 
                   {position.tools_systems_skills.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-sm font-medium text-gray-700 mb-1">Skills & Tools</p>
+                      <p className="text-sm font-medium text-foreground mb-1">Skills & Tools</p>
                       <div className="flex flex-wrap gap-1">
                         {position.tools_systems_skills.map((skill, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
@@ -140,8 +178,8 @@ export function CareerTimeline() {
 
                   {position.achievements.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-gray-700 mb-1">Key Achievements</p>
-                      <ul className="text-sm text-gray-600 list-disc list-inside">
+                      <p className="text-sm font-medium text-foreground mb-1">Key Achievements</p>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside">
                         {position.achievements.map((achievement, index) => (
                           <li key={index}>{achievement}</li>
                         ))}
@@ -161,7 +199,7 @@ export function CareerTimeline() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                     onClick={() => {
                       if (confirm('Are you sure you want to delete this position?')) {
                         deletePositionMutation.mutate(position.id!);
@@ -179,8 +217,8 @@ export function CareerTimeline() {
         {positions.length === 0 && (
           <Card>
             <CardContent className="pt-6">
-              <div className="text-center text-gray-500">
-                <Briefcase className="w-12 h-12 mx-auto mb-2" />
+              <div className="text-center text-muted-foreground">
+                <Briefcase className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
                 <p>No positions added yet</p>
                 <p className="text-sm">Start building your career timeline</p>
               </div>
