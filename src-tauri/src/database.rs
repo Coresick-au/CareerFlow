@@ -3,12 +3,6 @@ use rusqlite::{params, Connection, Result as SqlResult};
 use chrono::{DateTime, Utc, NaiveDate};
 use std::path::PathBuf;
 
-impl Default for Database {
-    fn default() -> Self {
-        Self::new(PathBuf::from("careerflow.db")).expect("Failed to create database")
-    }
-}
-
 pub struct Database {
     conn: Connection,
 }
@@ -142,7 +136,7 @@ impl Database {
     }
 
     // User Profile operations
-    pub fn get_user_profile(&self) -> Option<UserProfile> {
+    pub fn get_user_profile(&self) -> Result<Option<UserProfile>, String> {
         let mut stmt = self.conn
             .prepare(
                 "SELECT id, first_name, last_name, date_of_birth, state, industry,
@@ -152,32 +146,46 @@ impl Database {
                  FROM user_profile
                  LIMIT 1"
             )
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
-        stmt.query_row([], |row| {
-            let _tools_json: String = row.get(12)?;
-            let _achievements_json: String = row.get(13)?;
-
+        let result = stmt.query_row([], |row| {
             Ok(UserProfile {
                 id: Some(row.get(0)?),
                 first_name: row.get(1)?,
                 last_name: row.get(2)?,
-                date_of_birth: NaiveDate::parse_from_str(&row.get::<_, String>(3)?, "%Y-%m-%d").unwrap(),
-                state: serde_json::from_str(&row.get::<_, String>(4)?).unwrap(),
+                date_of_birth: NaiveDate::parse_from_str(&row.get::<_, String>(3)?, "%Y-%m-%d")
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
+                state: serde_json::from_str(&row.get::<_, String>(4)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::new(e)))?,
                 industry: row.get(5)?,
-                highest_qualification: serde_json::from_str(&row.get::<_, String>(6)?).unwrap(),
+                highest_qualification: serde_json::from_str(&row.get::<_, String>(6)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e)))?,
                 career_preferences: CareerPreferences {
-                    employment_type_preference: serde_json::from_str(&row.get::<_, String>(7)?).unwrap(),
-                    fifo_tolerance: serde_json::from_str(&row.get::<_, String>(8)?).unwrap(),
-                    travel_tolerance: serde_json::from_str(&row.get::<_, String>(9)?).unwrap(),
-                    overtime_appetite: serde_json::from_str(&row.get::<_, String>(10)?).unwrap(),
+                    employment_type_preference: serde_json::from_str(&row.get::<_, String>(7)?)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(e)))?,
+                    fifo_tolerance: serde_json::from_str(&row.get::<_, String>(8)?)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(e)))?,
+                    travel_tolerance: serde_json::from_str(&row.get::<_, String>(9)?)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(e)))?,
+                    overtime_appetite: serde_json::from_str(&row.get::<_, String>(10)?)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(10, rusqlite::types::Type::Text, Box::new(e)))?,
                     privacy_acknowledged: row.get(11)?,
                     disclaimer_acknowledged: row.get(12)?,
                 },
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?).unwrap().with_timezone(&Utc),
-                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(14)?).unwrap().with_timezone(&Utc),
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(13, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
+                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(14)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(14, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
             })
-        }).ok()
+        });
+
+        match result {
+            Ok(profile) => Ok(Some(profile)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
     }
 
     pub fn save_user_profile(&self, profile: UserProfile) -> SqlResult<()> {
@@ -241,7 +249,7 @@ impl Database {
     }
 
     // Position operations
-    pub fn get_positions(&self) -> Vec<Position> {
+    pub fn get_positions(&self) -> Result<Vec<Position>, String> {
         let mut stmt = self.conn
             .prepare(
                 "SELECT id, employer_name, job_title, employment_type, location,
@@ -250,7 +258,7 @@ impl Database {
                  FROM positions
                  ORDER BY start_date DESC"
             )
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
         let rows = stmt.query_map([], |row| {
             let tools_json: String = row.get(9)?;
@@ -260,20 +268,39 @@ impl Database {
                 id: Some(row.get(0)?),
                 employer_name: row.get(1)?,
                 job_title: row.get(2)?,
-                employment_type: serde_json::from_str(&row.get::<_, String>(3)?).unwrap(),
+                employment_type: serde_json::from_str(&row.get::<_, String>(3)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
                 location: row.get(4)?,
-                start_date: NaiveDate::parse_from_str(&row.get::<_, String>(5)?, "%Y-%m-%d").unwrap(),
-                end_date: row.get::<_, Option<String>>(6)?.map(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").unwrap()),
-                seniority_level: serde_json::from_str(&row.get::<_, String>(7)?).unwrap(),
+                start_date: NaiveDate::parse_from_str(&row.get::<_, String>(5)?, "%Y-%m-%d")
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e)))?,
+                end_date: {
+                    match row.get::<_, Option<String>>(6)? {
+                        Some(s) => Some(NaiveDate::parse_from_str(&s, "%Y-%m-%d")
+                            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e)))?),
+                        None => None,
+                    }
+                },
+                seniority_level: serde_json::from_str(&row.get::<_, String>(7)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(e)))?,
                 core_responsibilities: row.get(8)?,
-                tools_systems_skills: serde_json::from_str(&tools_json).unwrap(),
-                achievements: serde_json::from_str(&achievements_json).unwrap(),
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(11)?).unwrap().with_timezone(&Utc),
-                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(12)?).unwrap().with_timezone(&Utc),
+                tools_systems_skills: serde_json::from_str(&tools_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(e)))?,
+                achievements: serde_json::from_str(&achievements_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(10, rusqlite::types::Type::Text, Box::new(e)))?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(11)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(11, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
+                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(12)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(12, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
             })
-        }).unwrap();
+        }).map_err(|e| e.to_string())?;
 
-        rows.map(|r| r.unwrap()).collect()
+        let mut positions = Vec::new();
+        for row_result in rows {
+            positions.push(row_result.map_err(|e| e.to_string())?);
+        }
+        Ok(positions)
     }
 
     pub fn save_position(&self, position: Position) -> SqlResult<i64> {
@@ -339,7 +366,7 @@ impl Database {
     }
 
     // Compensation Record operations
-    pub fn get_compensation_records(&self, position_id: i64) -> Vec<CompensationRecord> {
+    pub fn get_compensation_records(&self, position_id: i64) -> Result<Vec<CompensationRecord>, String> {
         let mut stmt = self.conn
             .prepare(
                 "SELECT id, position_id, entry_type, pay_type, base_rate,
@@ -352,7 +379,7 @@ impl Database {
                  WHERE position_id = ?1
                  ORDER BY effective_date DESC"
             )
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
         let rows = stmt.query_map([position_id], |row| {
             let allowances_json: String = row.get(10)?;
@@ -361,34 +388,51 @@ impl Database {
             Ok(CompensationRecord {
                 id: Some(row.get(0)?),
                 position_id: row.get(1)?,
-                entry_type: serde_json::from_str(&row.get::<_, String>(2)?).unwrap(),
-                pay_type: serde_json::from_str(&row.get::<_, String>(3)?).unwrap(),
+                entry_type: serde_json::from_str(&row.get::<_, String>(2)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::new(e)))?,
+                pay_type: serde_json::from_str(&row.get::<_, String>(3)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
                 base_rate: row.get(4)?,
                 standard_weekly_hours: row.get(5)?,
                 overtime: OvertimeDetails {
-                    frequency: serde_json::from_str(&row.get::<_, String>(6)?).unwrap(),
+                    frequency: serde_json::from_str(&row.get::<_, String>(6)?)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e)))?,
                     rate_multiplier: row.get(7)?,
                     average_hours_per_week: row.get(8)?,
                     annual_hours: row.get(9)?,
                 },
-                allowances: serde_json::from_str(&allowances_json).unwrap(),
-                bonuses: serde_json::from_str(&bonuses_json).unwrap(),
+                allowances: serde_json::from_str(&allowances_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(10, rusqlite::types::Type::Text, Box::new(e)))?,
+                bonuses: serde_json::from_str(&bonuses_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(11, rusqlite::types::Type::Text, Box::new(e)))?,
                 super_contributions: SuperDetails {
                     contribution_rate: row.get(12)?,
                     additional_contributions: row.get(13)?,
                     salary_sacrifice: row.get(14)?,
                 },
-                payslip_frequency: row.get::<_, Option<String>>(15)?
-                    .map(|s| serde_json::from_str(&s).unwrap()),
+                payslip_frequency: {
+                    match row.get::<_, Option<String>>(15)? {
+                        Some(s) => Some(serde_json::from_str(&s)
+                            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(15, rusqlite::types::Type::Text, Box::new(e)))?),
+                        None => None,
+                    }
+                },
                 tax_withheld: row.get(16)?,
-                effective_date: NaiveDate::parse_from_str(&row.get::<_, String>(17)?, "%Y-%m-%d").unwrap(),
+                effective_date: NaiveDate::parse_from_str(&row.get::<_, String>(17)?, "%Y-%m-%d")
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(17, rusqlite::types::Type::Text, Box::new(e)))?,
                 confidence_score: row.get(18)?,
                 notes: row.get(19)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(20)?).unwrap().with_timezone(&Utc),
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(20)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(20, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
             })
-        }).unwrap();
+        }).map_err(|e| e.to_string())?;
 
-        rows.map(|r| r.unwrap()).collect()
+        let mut records = Vec::new();
+        for row_result in rows {
+            records.push(row_result.map_err(|e| e.to_string())?);
+        }
+        Ok(records)
     }
 
     pub fn save_compensation_record(&self, record: CompensationRecord) -> SqlResult<i64> {
@@ -474,7 +518,7 @@ impl Database {
     }
 
     // Weekly Entry operations
-    pub fn get_weekly_entries(&self) -> Vec<WeeklyCompensationEntry> {
+    pub fn get_weekly_entries(&self) -> Result<Vec<WeeklyCompensationEntry>, String> {
         let mut stmt = self.conn
             .prepare(
                 "SELECT id, position_id, financial_year, week_ending, gross_pay,
@@ -484,7 +528,7 @@ impl Database {
                  FROM weekly_entries
                  ORDER BY week_ending DESC"
             )
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
         let rows = stmt.query_map([], |row| {
             let allowances_json: String = row.get(10)?;
@@ -493,21 +537,29 @@ impl Database {
                 id: Some(row.get(0)?),
                 position_id: row.get(1)?,
                 financial_year: row.get(2)?,
-                week_ending: NaiveDate::parse_from_str(&row.get::<_, String>(3)?, "%Y-%m-%d").unwrap(),
+                week_ending: NaiveDate::parse_from_str(&row.get::<_, String>(3)?, "%Y-%m-%d")
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
                 gross_pay: row.get(4)?,
                 tax_withheld: row.get(5)?,
                 net_pay: row.get(6)?,
                 hours_ordinary: row.get(7)?,
                 hours_overtime: row.get(8)?,
                 overtime_rate_multiplier: row.get(9)?,
-                allowances: serde_json::from_str(&allowances_json).unwrap(),
+                allowances: serde_json::from_str(&allowances_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(10, rusqlite::types::Type::Text, Box::new(e)))?,
                 super_contributed: row.get(11)?,
                 notes: row.get(12)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?).unwrap().with_timezone(&Utc),
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(13, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
             })
-        }).unwrap();
+        }).map_err(|e| e.to_string())?;
 
-        rows.map(|r| r.unwrap()).collect()
+        let mut entries = Vec::new();
+        for row_result in rows {
+            entries.push(row_result.map_err(|e| e.to_string())?);
+        }
+        Ok(entries)
     }
 
     pub fn save_weekly_entry(&self, entry: WeeklyCompensationEntry) -> SqlResult<i64> {

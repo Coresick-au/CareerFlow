@@ -117,11 +117,11 @@ export function Dashboard() {
         <WelcomeModal onLoadSampleData={() => loadSampleDataMutation.mutate()} />
 
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Career Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Career Dashboard</h1>
           <p className="text-muted-foreground">Your earnings analysis at a glance</p>
         </div>
 
-        <div className="flex flex-col items-center justify-center min-h-[400px] bg-card rounded-lg border border-border p-8 text-center">
+        <div className="flex flex-col items-center justify-center min-h-[400px] bg-card rounded-xl border border-border p-8 text-center">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
             <DollarSign className="w-8 h-8 text-primary" />
           </div>
@@ -186,7 +186,7 @@ export function Dashboard() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Career Dashboard</h1>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">Career Dashboard</h1>
           <p className="text-muted-foreground">Your earnings analysis at a glance</p>
         </div>
 
@@ -210,7 +210,7 @@ export function Dashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-card p-6 rounded-lg shadow">
+        <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
@@ -225,7 +225,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow">
+        <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Effective Hourly Rate</p>
@@ -238,7 +238,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow">
+        <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Income Percentile</p>
@@ -251,7 +251,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow">
+        <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-1">
@@ -270,7 +270,7 @@ export function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-card p-6 rounded-lg shadow">
+        <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
           <h2 className="text-lg font-semibold text-foreground mb-4">
             {selectedYear === 'all' ? 'Earnings Over Time' : `Compensation Breakdown (${selectedYear})`}
           </h2>
@@ -294,7 +294,7 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="bg-card p-6 rounded-lg shadow">
+        <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
           <h2 className="text-lg font-semibold text-foreground mb-4">Hours vs Earnings</h2>
           <HoursEarningsChart data={analysis.hours_vs_earnings} />
         </div>
@@ -328,7 +328,7 @@ export function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+      <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-medium text-foreground">Ready to dive deeper?</h3>
