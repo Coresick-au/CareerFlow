@@ -39,6 +39,7 @@ impl Database {
                 overtime_appetite TEXT NOT NULL,
                 privacy_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
                 disclaimer_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+                standard_weekly_hours REAL NOT NULL DEFAULT 38.0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )",
@@ -132,6 +133,12 @@ impl Database {
             [],
         )?;
 
+        // Migration: Add standard_weekly_hours column if it doesn't exist (for existing databases)
+        let _ = self.conn.execute(
+            "ALTER TABLE user_profile ADD COLUMN standard_weekly_hours REAL NOT NULL DEFAULT 38.0",
+            [],
+        );
+
         Ok(())
     }
 
@@ -142,7 +149,7 @@ impl Database {
                 "SELECT id, first_name, last_name, date_of_birth, state, industry,
                         highest_qualification, employment_type_preference, fifo_tolerance,
                         travel_tolerance, overtime_appetite, privacy_acknowledged,
-                        disclaimer_acknowledged, created_at, updated_at
+                        disclaimer_acknowledged, standard_weekly_hours, created_at, updated_at
                  FROM user_profile
                  LIMIT 1"
             )
@@ -172,11 +179,12 @@ impl Database {
                     privacy_acknowledged: row.get(11)?,
                     disclaimer_acknowledged: row.get(12)?,
                 },
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(13)?)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(13, rusqlite::types::Type::Text, Box::new(e)))?
-                    .with_timezone(&Utc),
-                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(14)?)
+                standard_weekly_hours: row.get(13)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(14)?)
                     .map_err(|e| rusqlite::Error::FromSqlConversionFailure(14, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
+                updated_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(15)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(15, rusqlite::types::Type::Text, Box::new(e)))?
                     .with_timezone(&Utc),
             })
         });
@@ -198,8 +206,9 @@ impl Database {
                     first_name = ?1, last_name = ?2, date_of_birth = ?3, state = ?4,
                     industry = ?5, highest_qualification = ?6, employment_type_preference = ?7,
                     fifo_tolerance = ?8, travel_tolerance = ?9, overtime_appetite = ?10,
-                    privacy_acknowledged = ?11, disclaimer_acknowledged = ?12, updated_at = ?13
-                 WHERE id = ?14",
+                    privacy_acknowledged = ?11, disclaimer_acknowledged = ?12,
+                    standard_weekly_hours = ?13, updated_at = ?14
+                 WHERE id = ?15",
                 params![
                     profile.first_name,
                     profile.last_name,
@@ -213,6 +222,7 @@ impl Database {
                     serde_json::to_string(&profile.career_preferences.overtime_appetite).unwrap(),
                     profile.career_preferences.privacy_acknowledged,
                     profile.career_preferences.disclaimer_acknowledged,
+                    profile.standard_weekly_hours,
                     now,
                     id
                 ],
@@ -224,8 +234,8 @@ impl Database {
                     first_name, last_name, date_of_birth, state, industry,
                     highest_qualification, employment_type_preference, fifo_tolerance,
                     travel_tolerance, overtime_appetite, privacy_acknowledged,
-                    disclaimer_acknowledged, created_at, updated_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                    disclaimer_acknowledged, standard_weekly_hours, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     profile.first_name,
                     profile.last_name,
@@ -239,6 +249,7 @@ impl Database {
                     serde_json::to_string(&profile.career_preferences.overtime_appetite).unwrap(),
                     profile.career_preferences.privacy_acknowledged,
                     profile.career_preferences.disclaimer_acknowledged,
+                    profile.standard_weekly_hours,
                     now,
                     now
                 ],

@@ -11,6 +11,7 @@ pub struct UserProfile {
     pub industry: String,
     pub highest_qualification: Qualification,
     pub career_preferences: CareerPreferences,
+    pub standard_weekly_hours: f64, // User-configurable weekly hours
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
