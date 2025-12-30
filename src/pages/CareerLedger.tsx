@@ -163,6 +163,22 @@ export function CareerLedger() {
         },
     });
 
+    const saveYearlyEntryMutation = useMutation({
+        mutationFn: (entry: YearlyIncomeEntry) => invoke<number>('save_yearly_entry', { entry }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['yearlyEntries'] });
+            setEditingEntry(null);
+        },
+    });
+
+    const deleteYearlyEntryMutation = useMutation({
+        mutationFn: (id: number) => invoke('delete_yearly_entry', id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['yearlyEntries'] });
+            setEditingEntry(null);
+        },
+    });
+
     const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
 
     const handleEntryClick = (entry: TimelineEntry) => {
@@ -440,10 +456,28 @@ export function CareerLedger() {
                         />
                     )}
 
-                    {editingEntry?.type === 'compensation' && editingEntry.data.entry_type === 'YearlySummary' && (
+                    {editingEntry?.type === 'yearly' && (
                         <YearlyWageForm
                             initialData={editingEntry.data}
-                            onSave={(record) => saveCompensationMutation.mutate(record)}
+                            onSave={(entry) => saveYearlyEntryMutation.mutate(entry)}
+                            onCancel={() => setEditingEntry(null)}
+                            onDelete={(id) => deleteYearlyEntryMutation.mutate(id)}
+                            isSaving={saveYearlyEntryMutation.isPending}
+                        />
+                    )}
+
+                    {/* Legacy support: If old records still exist as CompensationRecord with YearlySummary type */}
+                    {editingEntry?.type === 'compensation' && editingEntry.data.entry_type === 'YearlySummary' && (
+                        <YearlyWageForm
+                            initialData={{
+                                financial_year: 'FY2024-25', // Default fallback
+                                gross_income: editingEntry.data.base_rate,
+                                tax_withheld: editingEntry.data.tax_withheld || 0,
+                                reportable_super: editingEntry.data.super_contributions.additional_contributions,
+                                source: 'Manual',
+                                created_at: editingEntry.data.created_at
+                            }}
+                            onSave={(entry) => saveYearlyEntryMutation.mutate(entry)} // Convert to new format
                             onCancel={() => setEditingEntry(null)}
                             onDelete={(id) => deleteCompensationMutation.mutate(id)}
                         />

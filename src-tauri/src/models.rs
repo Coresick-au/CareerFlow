@@ -351,6 +351,7 @@ pub struct YearlyIncomeEntry {
     pub tax_withheld: f64,
     pub reportable_super: f64,
     pub reportable_fringe_benefits: Option<f64>,
+    pub allowances: Vec<Allowance>,
     pub source: IncomeSource,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,

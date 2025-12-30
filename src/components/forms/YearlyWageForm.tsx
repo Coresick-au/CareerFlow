@@ -5,7 +5,8 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Trash2, Calculator } from 'lucide-react';
+import { Trash2, Calculator, Plus, X } from 'lucide-react';
+import { Allowance, AllowanceFrequency } from '../../types';
 
 interface YearlyWageFormProps {
   initialData?: YearlyIncomeEntry | null;
@@ -32,6 +33,11 @@ export function YearlyWageForm({ initialData, onSave, onCancel, onDelete, isSavi
   const [source, setSource] = useState<'ATO' | 'Manual'>(initialData?.source || 'Manual');
   const [notes, setNotes] = useState(initialData?.notes || '');
 
+  // Allowances state
+  const [allowances, setAllowances] = useState<Allowance[]>(initialData?.allowances || []);
+  const [newAllowanceName, setNewAllowanceName] = useState('');
+  const [newAllowanceAmount, setNewAllowanceAmount] = useState(0);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -43,6 +49,7 @@ export function YearlyWageForm({ initialData, onSave, onCancel, onDelete, isSavi
       tax_withheld: taxWithheld,
       reportable_super: reportableSuper,
       reportable_fringe_benefits: reportableFringeBenefits || 0,
+      allowances: allowances,
       source: source,
       notes: notes || undefined,
       created_at: initialData?.created_at || new Date(),
@@ -51,8 +58,12 @@ export function YearlyWageForm({ initialData, onSave, onCancel, onDelete, isSavi
     onSave(yearlyEntry);
   };
 
+  const allowancesTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
+  // Gross income usually INCLUDES allowances in ATO summaries, but for manual entry it might be separate.
+  // However, the "Gross Income" field is separate.
+  // Net Income calculation:
   const netIncome = grossIncome - taxWithheld;
-  const totalPackage = grossIncome + reportableSuper + reportableFringeBenefits;
+  const totalPackage = grossIncome + reportableSuper + reportableFringeBenefits + allowancesTotal;
 
   const formatCurrency = (amount: number) => {
     if (isNaN(amount)) return '$0';
@@ -148,6 +159,78 @@ export function YearlyWageForm({ initialData, onSave, onCancel, onDelete, isSavi
               className="mt-1"
               placeholder="Car, phone, etc."
             />
+          </div>
+
+          {/* Allowances Section */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex justify-between items-center">
+              <Label>Allowances & Other Income</Label>
+              <div className="text-xs text-muted-foreground">
+                Total: {formatCurrency(allowancesTotal)}
+              </div>
+            </div>
+
+            {allowances.map((allowance, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <Input
+                  value={allowance.name}
+                  readOnly
+                  className="flex-1 bg-muted"
+                />
+                <div className="w-24 px-3 py-2 bg-muted rounded text-sm text-right border">
+                  {formatCurrency(allowance.amount)}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAllowances(allowances.filter((_, i) => i !== index))}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+
+            <div className="flex gap-2 items-end">
+              <div className="grid gap-1 flex-1">
+                <Input
+                  placeholder="Description (e.g. Car, Laundry)"
+                  value={newAllowanceName}
+                  onChange={(e) => setNewAllowanceName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1 w-32">
+                <Input
+                  type="number"
+                  value={newAllowanceAmount || ''}
+                  onChange={(e) => setNewAllowanceAmount(Number(e.target.value))}
+                  placeholder="0.00"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  if (newAllowanceName && newAllowanceAmount > 0) {
+                    setAllowances([
+                      ...allowances,
+                      {
+                        name: newAllowanceName,
+                        amount: newAllowanceAmount,
+                        frequency: AllowanceFrequency.Annually,
+                        taxable: true
+                      }
+                    ]);
+                    setNewAllowanceName('');
+                    setNewAllowanceAmount(0);
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
           </div>
 
           <div>

@@ -175,6 +175,7 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
                 tax_withheld: taxWithheld,
                 reportable_super: superAmount,
                 reportable_fringe_benefits: 0,
+                allowances: allowances,
                 source: 'ATO',
                 notes: `${fyYear} ATO Payment Summary`,
                 created_at: new Date(),

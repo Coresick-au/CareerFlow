@@ -240,6 +240,7 @@ export interface YearlyIncomeEntry {
   tax_withheld: number;
   reportable_super: number;
   reportable_fringe_benefits?: number;
+  allowances: Allowance[];
   source: 'ATO' | 'Manual'; // Where the data came from
   notes?: string;
   created_at: Date;

@@ -133,6 +133,7 @@ impl Database {
                 tax_withheld REAL NOT NULL,
                 reportable_super REAL NOT NULL,
                 reportable_fringe_benefits REAL,
+                allowances TEXT NOT NULL DEFAULT '[]', -- JSON array
                 source TEXT NOT NULL,
                 notes TEXT,
                 created_at TEXT NOT NULL,
@@ -140,6 +141,13 @@ impl Database {
             )",
             [],
         )?;
+
+        // Migration: Add allowances column if it doesn't exist (for existing databases)
+        // We attempt to add it and ignore the error if it already exists (duplicate column name)
+        let _ = self.conn.execute(
+            "ALTER TABLE yearly_income_entries ADD COLUMN allowances TEXT NOT NULL DEFAULT '[]'",
+            [],
+        );
 
         // Create indexes for performance
         self.conn.execute(
@@ -744,7 +752,7 @@ impl Database {
         let mut stmt = self.conn
             .prepare(
                 "SELECT id, position_id, financial_year, gross_income, tax_withheld,
-                        reportable_super, reportable_fringe_benefits, source, notes, created_at
+                        reportable_super, reportable_fringe_benefits, allowances, source, notes, created_at
                  FROM yearly_income_entries
                  ORDER BY financial_year DESC"
             )
@@ -759,11 +767,13 @@ impl Database {
                 tax_withheld: row.get(4)?,
                 reportable_super: row.get(5)?,
                 reportable_fringe_benefits: row.get(6)?,
-                source: serde_json::from_str(&row.get::<_, String>(7)?)
+                allowances: serde_json::from_str(&row.get::<_, String>(7)?)
                     .map_err(|e| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(e)))?,
-                notes: row.get(8)?,
-                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(9)?)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(e)))?
+                source: serde_json::from_str(&row.get::<_, String>(8)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(8, rusqlite::types::Type::Text, Box::new(e)))?,
+                notes: row.get(9)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(10)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(10, rusqlite::types::Type::Text, Box::new(e)))?
                     .with_timezone(&Utc),
             })
         }).map_err(|e| e.to_string())?;
@@ -784,8 +794,8 @@ impl Database {
                 "UPDATE yearly_income_entries SET
                     position_id = ?1, financial_year = ?2, gross_income = ?3,
                     tax_withheld = ?4, reportable_super = ?5, reportable_fringe_benefits = ?6,
-                    source = ?7, notes = ?8
-                 WHERE id = ?9",
+                    allowances = ?7, source = ?8, notes = ?9
+                 WHERE id = ?10",
                 params![
                     entry.position_id,
                     entry.financial_year,
@@ -793,6 +803,7 @@ impl Database {
                     entry.tax_withheld,
                     entry.reportable_super,
                     entry.reportable_fringe_benefits,
+                    to_json(&entry.allowances)?,
                     to_json(&entry.source)?,
                     entry.notes,
                     id
@@ -804,8 +815,8 @@ impl Database {
             self.conn.execute(
                 "INSERT INTO yearly_income_entries (
                     position_id, financial_year, gross_income, tax_withheld,
-                    reportable_super, reportable_fringe_benefits, source, notes, created_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    reportable_super, reportable_fringe_benefits, allowances, source, notes, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     entry.position_id,
                     entry.financial_year,
@@ -813,6 +824,7 @@ impl Database {
                     entry.tax_withheld,
                     entry.reportable_super,
                     entry.reportable_fringe_benefits,
+                    to_json(&entry.allowances)?,
                     to_json(&entry.source)?,
                     entry.notes,
                     now
