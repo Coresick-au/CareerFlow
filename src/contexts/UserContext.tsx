@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface User {
   id: string;
@@ -26,6 +27,7 @@ interface UserProviderProps {
 export function UserProvider({ children }: UserProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const queryClient = useQueryClient();
 
   // Load users and current user from localStorage on mount
   useEffect(() => {
@@ -90,7 +92,11 @@ export function UserProvider({ children }: UserProviderProps) {
   const switchUser = (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (user) {
+      // Switch the mock backend context BEFORE updating state
+      switchMockBackendUser(userId);
       setCurrentUser(user);
+      // Invalidate all queries to force refetch with new user's data
+      queryClient.invalidateQueries();
     }
   };
 

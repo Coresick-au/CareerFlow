@@ -340,3 +340,46 @@ pub struct WeeklyCompensationEntry {
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
 }
+
+// Yearly ATO Summary Entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YearlyIncomeEntry {
+    pub id: Option<i64>,
+    pub position_id: Option<i64>,
+    pub financial_year: String,
+    pub gross_income: f64,
+    pub tax_withheld: f64,
+    pub reportable_super: f64,
+    pub reportable_fringe_benefits: Option<f64>,
+    pub source: IncomeSource,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IncomeSource {
+    ATO,
+    Manual,
+}
+
+// Data Export/Import structure for backup and restore
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DataExport {
+    pub user_profile: Option<UserProfile>,
+    pub positions: Vec<Position>,
+    pub compensation_records: Vec<CompensationRecord>,
+    pub weekly_entries: Vec<WeeklyCompensationEntry>,
+    pub yearly_entries: Vec<YearlyIncomeEntry>,
+    pub export_date: DateTime<Utc>,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportResult {
+    pub success: bool,
+    pub profile_imported: bool,
+    pub positions_count: usize,
+    pub compensation_count: usize,
+    pub weekly_count: usize,
+    pub yearly_count: usize,
+}

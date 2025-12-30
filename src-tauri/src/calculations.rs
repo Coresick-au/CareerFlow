@@ -2,13 +2,13 @@ use crate::models::*;
 use chrono::{NaiveDate, Datelike};
 use std::collections::HashMap;
 
-// Australian tax brackets for 2023-2024 (financial year)
+// Australian tax brackets for 2024-2025 (financial year) - Stage 3 Tax Cuts
 const TAX_BRACKETS_2024: &[(f64, f64)] = &[
-    (0.0, 0.0),      // $0 - $18,200: 0%
-    (18200.0, 0.19), // $18,201 - $45,000: 19%
-    (45000.0, 0.235),// $45,001 - $120,000: 23.5%
-    (120000.0, 0.375),// $120,001 - $180,000: 37.5%
-    (180000.0, 0.45),// $180,001+: 45%
+    (0.0, 0.0),        // $0 - $18,200: 0%
+    (18200.0, 0.16),   // $18,201 - $45,000: 16% (reduced from 19%)
+    (45000.0, 0.30),   // $45,001 - $135,000: 30% (reduced from 32.5%, expanded bracket)
+    (135000.0, 0.37),  // $135,001 - $190,000: 37% (threshold increased from $120k)
+    (190000.0, 0.45),  // $190,001+: 45% (threshold increased from $180k)
 ];
 
 // Superannuation guarantee rates by year

@@ -36,13 +36,13 @@ export function ResumeExport() {
   const handleCopyPrompt = async () => {
     if (!resumeData) return;
 
-    const prompt = generateChatGPTPrompt(resumeData, selectedType);
+    const prompt = generateAIPrompt(resumeData, selectedType);
     await navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const generateChatGPTPrompt = (data: ResumeExportType, type: ResumeType): string => {
+  const generateAIPrompt = (data: ResumeExportType, type: ResumeType): string => {
     const typeDescriptions = {
       ats: "ATS-optimized resume that will pass automated screening systems",
       technical: "Technical/engineering resume highlighting skills and project experience",
@@ -100,7 +100,7 @@ Please generate the resume content now.`;
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Resume Export</h1>
-        <p className="text-muted-foreground">Generate structured exports for ChatGPT-powered resume creation</p>
+        <p className="text-muted-foreground">Generate structured exports for AI-powered resume creation</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -141,7 +141,7 @@ Please generate the resume content now.`;
                 ) : (
                   <>
                     <Copy className="w-4 h-4 mr-2" />
-                    Copy ChatGPT Prompt
+                    Copy AI Prompt
                   </>
                 )}
               </Button>
@@ -151,8 +151,8 @@ Please generate the resume content now.`;
               <p className="font-medium mb-1">How to use:</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Download the JSON file</li>
-                <li>Copy the ChatGPT prompt</li>
-                <li>Paste both into ChatGPT</li>
+                <li>Copy the AI prompt</li>
+                <li>Paste both into your AI Assistant (e.g. ChatGPT, Claude)</li>
                 <li>Review and customize the output</li>
               </ol>
             </div>

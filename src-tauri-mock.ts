@@ -121,6 +121,8 @@ function saveToStorage() {
   localStorage.setItem('careerflow_profiles', JSON.stringify(mockProfiles));
   localStorage.setItem('careerflow_positions', JSON.stringify(mockPositions));
   localStorage.setItem('careerflow_compensation', JSON.stringify(mockCompensation));
+  localStorage.setItem('careerflow_weekly', JSON.stringify(mockWeeklyEntries));
+  localStorage.setItem('careerflow_yearly', JSON.stringify(mockYearlyEntries));
 }
 
 // Load data helper
@@ -130,10 +132,14 @@ function loadFromStorage() {
     const profiles = localStorage.getItem('careerflow_profiles');
     const positions = localStorage.getItem('careerflow_positions');
     const compensation = localStorage.getItem('careerflow_compensation');
+    const weekly = localStorage.getItem('careerflow_weekly');
+    const yearly = localStorage.getItem('careerflow_yearly');
 
     if (profiles) mockProfiles = JSON.parse(profiles);
     if (positions) mockPositions = JSON.parse(positions);
     if (compensation) mockCompensation = JSON.parse(compensation);
+    if (weekly) mockWeeklyEntries = JSON.parse(weekly);
+    if (yearly) mockYearlyEntries = JSON.parse(yearly);
   } catch (e) {
     console.error('Failed to load mock data from storage', e);
   }
@@ -143,6 +149,8 @@ function loadFromStorage() {
 let mockProfiles: Record<string, any> = {};
 let mockPositions: Record<string, any[]> = {};
 let mockCompensation: Record<string, any[]> = {};
+let mockWeeklyEntries: Record<string, any[]> = {};
+let mockYearlyEntries: Record<string, any[]> = {};
 
 // Load immediately if in browser
 loadFromStorage();
@@ -154,15 +162,19 @@ function getUserData() {
     profile: mockProfiles[userId] || null,
     positions: mockPositions[userId] || [],
     compensation: mockCompensation[userId] || [],
+    weeklyEntries: mockWeeklyEntries[userId] || [],
+    yearlyEntries: mockYearlyEntries[userId] || [],
   };
 }
 
 // Helper to set user-specific data
-function setUserData(data: { profile?: any; positions?: any[]; compensation?: any[] }) {
+function setUserData(data: { profile?: any; positions?: any[]; compensation?: any[]; weeklyEntries?: any[]; yearlyEntries?: any[] }) {
   const userId = getCurrentUserId();
   if (data.profile !== undefined) mockProfiles[userId] = data.profile;
   if (data.positions !== undefined) mockPositions[userId] = data.positions;
   if (data.compensation !== undefined) mockCompensation[userId] = data.compensation;
+  if (data.weeklyEntries !== undefined) mockWeeklyEntries[userId] = data.weeklyEntries;
+  if (data.yearlyEntries !== undefined) mockYearlyEntries[userId] = data.yearlyEntries;
   saveToStorage();
 }
 
@@ -480,6 +492,64 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
       });
       return undefined as T;
 
+    // Weekly Entry operations
+    case 'get_weekly_entries':
+      return getUserData().weeklyEntries as T;
+
+    case 'save_weekly_entry':
+      const weeklyData = getUserData();
+      const weeklyArgs = args?.entry || args;
+      if (weeklyArgs.id) {
+        // Update
+        setUserData({
+          weeklyEntries: weeklyData.weeklyEntries.map((w: any) => w.id === weeklyArgs.id ? { ...w, ...weeklyArgs } : w)
+        });
+        return weeklyArgs.id as T;
+      } else {
+        // Create
+        const newWeekly = { ...weeklyArgs, id: Date.now(), created_at: new Date() };
+        setUserData({
+          weeklyEntries: [...weeklyData.weeklyEntries, newWeekly]
+        });
+        return newWeekly.id as T;
+      }
+
+    case 'delete_weekly_entry':
+      const weeklyDataDel = getUserData();
+      setUserData({
+        weeklyEntries: weeklyDataDel.weeklyEntries.filter((w: any) => w.id !== args)
+      });
+      return undefined as T;
+
+    // Yearly Entry operations
+    case 'get_yearly_entries':
+      return getUserData().yearlyEntries as T;
+
+    case 'save_yearly_entry':
+      const yearlyData = getUserData();
+      const yearlyArgs = args?.entry || args;
+      if (yearlyArgs.id) {
+        // Update
+        setUserData({
+          yearlyEntries: yearlyData.yearlyEntries.map((y: any) => y.id === yearlyArgs.id ? { ...y, ...yearlyArgs } : y)
+        });
+        return yearlyArgs.id as T;
+      } else {
+        // Create
+        const newYearly = { ...yearlyArgs, id: Date.now(), created_at: new Date() };
+        setUserData({
+          yearlyEntries: [...yearlyData.yearlyEntries, newYearly]
+        });
+        return newYearly.id as T;
+      }
+
+    case 'delete_yearly_entry':
+      const yearlyDataDel = getUserData();
+      setUserData({
+        yearlyEntries: yearlyDataDel.yearlyEntries.filter((y: any) => y.id !== args)
+      });
+      return undefined as T;
+
     case 'calculate_earnings_analysis':
       // Calculate earnings from actual data
       const userCompData = getUserData();
@@ -658,28 +728,33 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
       } as T;
 
     case 'export_all_data':
-      const exportData = getUserData();
+      const exportDataAll = getUserData();
       return {
-        user_profile: exportData.profile,
-        positions: exportData.positions,
-        compensation_records: exportData.compensation,
+        user_profile: exportDataAll.profile,
+        positions: exportDataAll.positions,
+        compensation_records: exportDataAll.compensation,
+        weekly_entries: exportDataAll.weeklyEntries,
+        yearly_entries: exportDataAll.yearlyEntries,
         export_date: new Date().toISOString(),
         version: '1.0.0'
       } as T;
 
     case 'import_all_data':
-      const { user_profile, positions, compensation_records } = args || {};
-      const importData = getUserData();
-      if (user_profile) importData.profile = user_profile;
-      if (positions) importData.positions = positions;
-      if (compensation_records) importData.compensation = compensation_records;
-      setUserData(importData);
+      const importArgs = args || {};
+      const currentDataForImport = getUserData();
+      if (importArgs.user_profile) currentDataForImport.profile = importArgs.user_profile;
+      if (importArgs.positions) currentDataForImport.positions = importArgs.positions;
+      if (importArgs.compensation_records) currentDataForImport.compensation = importArgs.compensation_records;
+      if (importArgs.weekly_entries) currentDataForImport.weeklyEntries = importArgs.weekly_entries;
+      if (importArgs.yearly_entries) currentDataForImport.yearlyEntries = importArgs.yearly_entries;
+      setUserData(currentDataForImport);
       return {
-        success: true, imported: {
-          profile: !!user_profile,
-          positions: positions?.length || 0,
-          compensation: compensation_records?.length || 0
-        }
+        success: true,
+        profile_imported: !!importArgs.user_profile,
+        positions_count: importArgs.positions?.length || 0,
+        compensation_count: importArgs.compensation_records?.length || 0,
+        weekly_count: importArgs.weekly_entries?.length || 0,
+        yearly_count: importArgs.yearly_entries?.length || 0
       } as T;
 
     case 'load_sample_data':
@@ -687,6 +762,8 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
         profile: sampleUserProfile,
         positions: samplePositions,
         compensation: sampleCompensation,
+        weeklyEntries: [],
+        yearlyEntries: [],
       });
       // setUserData already saves to storage
       return {
@@ -698,16 +775,18 @@ export async function invoke<T>(command: string, args?: any): Promise<T> {
       } as T;
 
     case 'clear_all_data':
-      const userId = getCurrentUserId();
+      const userIdToClear = getCurrentUserId();
       setUserData({
         profile: null,
         positions: [],
         compensation: [],
+        weeklyEntries: [],
+        yearlyEntries: [],
       });
       // setUserData saves to storage, so we don't strictly need to manually clear tokens unless we want to be cleaner
       if (typeof window !== 'undefined') {
         Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('careerflow_data_' + userId) ||
+          if (key.startsWith('careerflow_data_' + userIdToClear) ||
             key.startsWith('careerflow_')) {
             localStorage.removeItem(key);
           }

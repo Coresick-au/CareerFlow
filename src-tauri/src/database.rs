@@ -3,6 +3,12 @@ use rusqlite::{params, Connection, Result as SqlResult};
 use chrono::{DateTime, Utc, NaiveDate};
 use std::path::PathBuf;
 
+/// Safe JSON serialization helper - converts serde_json errors to rusqlite errors
+fn to_json<T: serde::Serialize>(value: &T) -> Result<String, rusqlite::Error> {
+    serde_json::to_string(value)
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
+}
+
 pub struct Database {
     conn: Connection,
 }
@@ -117,6 +123,24 @@ impl Database {
             [],
         )?;
 
+        // Yearly Income Entries table (ATO summaries)
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS yearly_income_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                position_id INTEGER,
+                financial_year TEXT NOT NULL,
+                gross_income REAL NOT NULL,
+                tax_withheld REAL NOT NULL,
+                reportable_super REAL NOT NULL,
+                reportable_fringe_benefits REAL,
+                source TEXT NOT NULL,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (position_id) REFERENCES positions(id) ON DELETE SET NULL
+            )",
+            [],
+        )?;
+
         // Create indexes for performance
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_positions_dates ON positions(start_date, end_date)",
@@ -130,6 +154,11 @@ impl Database {
 
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_weekly_date ON weekly_entries(week_ending)",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_yearly_fy ON yearly_income_entries(financial_year)",
             [],
         )?;
 
@@ -213,13 +242,13 @@ impl Database {
                     profile.first_name,
                     profile.last_name,
                     profile.date_of_birth.to_string(),
-                    serde_json::to_string(&profile.state).unwrap(),
+                    to_json(&profile.state)?,
                     profile.industry,
-                    serde_json::to_string(&profile.highest_qualification).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.employment_type_preference).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.fifo_tolerance).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.travel_tolerance).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.overtime_appetite).unwrap(),
+                    to_json(&profile.highest_qualification)?,
+                    to_json(&profile.career_preferences.employment_type_preference)?,
+                    to_json(&profile.career_preferences.fifo_tolerance)?,
+                    to_json(&profile.career_preferences.travel_tolerance)?,
+                    to_json(&profile.career_preferences.overtime_appetite)?,
                     profile.career_preferences.privacy_acknowledged,
                     profile.career_preferences.disclaimer_acknowledged,
                     profile.standard_weekly_hours,
@@ -240,13 +269,13 @@ impl Database {
                     profile.first_name,
                     profile.last_name,
                     profile.date_of_birth.to_string(),
-                    serde_json::to_string(&profile.state).unwrap(),
+                    to_json(&profile.state)?,
                     profile.industry,
-                    serde_json::to_string(&profile.highest_qualification).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.employment_type_preference).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.fifo_tolerance).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.travel_tolerance).unwrap(),
-                    serde_json::to_string(&profile.career_preferences.overtime_appetite).unwrap(),
+                    to_json(&profile.highest_qualification)?,
+                    to_json(&profile.career_preferences.employment_type_preference)?,
+                    to_json(&profile.career_preferences.fifo_tolerance)?,
+                    to_json(&profile.career_preferences.travel_tolerance)?,
+                    to_json(&profile.career_preferences.overtime_appetite)?,
                     profile.career_preferences.privacy_acknowledged,
                     profile.career_preferences.disclaimer_acknowledged,
                     profile.standard_weekly_hours,
@@ -317,8 +346,8 @@ impl Database {
     pub fn save_position(&self, position: Position) -> SqlResult<i64> {
         let now = Utc::now().to_rfc3339();
         
-        let tools_json = serde_json::to_string(&position.tools_systems_skills).unwrap();
-        let achievements_json = serde_json::to_string(&position.achievements).unwrap();
+        let tools_json = to_json(&position.tools_systems_skills)?;
+        let achievements_json = to_json(&position.achievements)?;
         
         if let Some(id) = position.id {
             // Update existing
@@ -331,11 +360,11 @@ impl Database {
                 params![
                     position.employer_name,
                     position.job_title,
-                    serde_json::to_string(&position.employment_type).unwrap(),
+                    to_json(&position.employment_type)?,
                     position.location,
                     position.start_date.to_string(),
                     position.end_date.map(|d| d.to_string()),
-                    serde_json::to_string(&position.seniority_level).unwrap(),
+                    to_json(&position.seniority_level)?,
                     position.core_responsibilities,
                     tools_json,
                     achievements_json,
@@ -355,11 +384,11 @@ impl Database {
                 params![
                     position.employer_name,
                     position.job_title,
-                    serde_json::to_string(&position.employment_type).unwrap(),
+                    to_json(&position.employment_type)?,
                     position.location,
                     position.start_date.to_string(),
                     position.end_date.map(|d| d.to_string()),
-                    serde_json::to_string(&position.seniority_level).unwrap(),
+                    to_json(&position.seniority_level)?,
                     position.core_responsibilities,
                     tools_json,
                     achievements_json,
@@ -449,8 +478,12 @@ impl Database {
     pub fn save_compensation_record(&self, record: CompensationRecord) -> SqlResult<i64> {
         let now = Utc::now().to_rfc3339();
         
-        let allowances_json = serde_json::to_string(&record.allowances).unwrap();
-        let bonuses_json = serde_json::to_string(&record.bonuses).unwrap();
+        let allowances_json = to_json(&record.allowances)?;
+        let bonuses_json = to_json(&record.bonuses)?;
+        let payslip_freq_json: Option<String> = match &record.payslip_frequency {
+            Some(freq) => Some(to_json(freq)?),
+            None => None,
+        };
         
         if let Some(id) = record.id {
             // Update existing
@@ -464,11 +497,11 @@ impl Database {
                     payslip_frequency = ?14, tax_withheld = ?15, effective_date = ?16, confidence_score = ?17, notes = ?18
                  WHERE id = ?19",
                 params![
-                    serde_json::to_string(&record.entry_type).unwrap(),
-                    serde_json::to_string(&record.pay_type).unwrap(),
+                    to_json(&record.entry_type)?,
+                    to_json(&record.pay_type)?,
                     record.base_rate,
                     record.standard_weekly_hours,
-                    serde_json::to_string(&record.overtime.frequency).unwrap(),
+                    to_json(&record.overtime.frequency)?,
                     record.overtime.rate_multiplier,
                     record.overtime.average_hours_per_week,
                     record.overtime.annual_hours,
@@ -477,7 +510,7 @@ impl Database {
                     record.super_contributions.contribution_rate,
                     record.super_contributions.additional_contributions,
                     record.super_contributions.salary_sacrifice,
-                    record.payslip_frequency.map(|s| serde_json::to_string(&s).unwrap()),
+                    payslip_freq_json,
                     record.tax_withheld,
                     record.effective_date.to_string(),
                     record.confidence_score,
@@ -498,11 +531,11 @@ impl Database {
                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
                 params![
                     record.position_id,
-                    serde_json::to_string(&record.entry_type).unwrap(),
-                    serde_json::to_string(&record.pay_type).unwrap(),
+                    to_json(&record.entry_type)?,
+                    to_json(&record.pay_type)?,
                     record.base_rate,
                     record.standard_weekly_hours,
-                    serde_json::to_string(&record.overtime.frequency).unwrap(),
+                    to_json(&record.overtime.frequency)?,
                     record.overtime.rate_multiplier,
                     record.overtime.average_hours_per_week,
                     record.overtime.annual_hours,
@@ -511,7 +544,7 @@ impl Database {
                     record.super_contributions.contribution_rate,
                     record.super_contributions.additional_contributions,
                     record.super_contributions.salary_sacrifice,
-                    record.payslip_frequency.map(|s| serde_json::to_string(&s).unwrap()),
+                    payslip_freq_json,
                     record.tax_withheld,
                     record.effective_date.to_string(),
                     record.confidence_score,
@@ -576,7 +609,7 @@ impl Database {
     pub fn save_weekly_entry(&self, entry: WeeklyCompensationEntry) -> SqlResult<i64> {
         let now = Utc::now().to_rfc3339();
         
-        let allowances_json = serde_json::to_string(&entry.allowances).unwrap();
+        let allowances_json = to_json(&entry.allowances)?;
         
         if let Some(id) = entry.id {
             // Update existing
@@ -636,4 +669,172 @@ impl Database {
         self.conn.execute("DELETE FROM weekly_entries WHERE id = ?1", [id])?;
         Ok(())
     }
+
+    // Get ALL compensation records (across all positions)
+    pub fn get_all_compensation_records(&self) -> Result<Vec<CompensationRecord>, String> {
+        let mut stmt = self.conn
+            .prepare(
+                "SELECT id, position_id, entry_type, pay_type, base_rate,
+                        standard_weekly_hours, overtime_frequency, overtime_rate_multiplier,
+                        overtime_average_hours_per_week, overtime_annual_hours, allowances,
+                        bonuses, super_contribution_rate, super_additional_contributions,
+                        super_salary_sacrifice, payslip_frequency, tax_withheld, effective_date,
+                        confidence_score, notes, created_at
+                 FROM compensation_records
+                 ORDER BY effective_date DESC"
+            )
+            .map_err(|e| e.to_string())?;
+
+        let rows = stmt.query_map([], |row| {
+            let allowances_json: String = row.get(10)?;
+            let bonuses_json: String = row.get(11)?;
+
+            Ok(CompensationRecord {
+                id: Some(row.get(0)?),
+                position_id: row.get(1)?,
+                entry_type: serde_json::from_str(&row.get::<_, String>(2)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::new(e)))?,
+                pay_type: serde_json::from_str(&row.get::<_, String>(3)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e)))?,
+                base_rate: row.get(4)?,
+                standard_weekly_hours: row.get(5)?,
+                overtime: OvertimeDetails {
+                    frequency: serde_json::from_str(&row.get::<_, String>(6)?)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e)))?,
+                    rate_multiplier: row.get(7)?,
+                    average_hours_per_week: row.get(8)?,
+                    annual_hours: row.get(9)?,
+                },
+                allowances: serde_json::from_str(&allowances_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(10, rusqlite::types::Type::Text, Box::new(e)))?,
+                bonuses: serde_json::from_str(&bonuses_json)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(11, rusqlite::types::Type::Text, Box::new(e)))?,
+                super_contributions: SuperDetails {
+                    contribution_rate: row.get(12)?,
+                    additional_contributions: row.get(13)?,
+                    salary_sacrifice: row.get(14)?,
+                },
+                payslip_frequency: {
+                    match row.get::<_, Option<String>>(15)? {
+                        Some(s) => Some(serde_json::from_str(&s)
+                            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(15, rusqlite::types::Type::Text, Box::new(e)))?),
+                        None => None,
+                    }
+                },
+                tax_withheld: row.get(16)?,
+                effective_date: NaiveDate::parse_from_str(&row.get::<_, String>(17)?, "%Y-%m-%d")
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(17, rusqlite::types::Type::Text, Box::new(e)))?,
+                confidence_score: row.get(18)?,
+                notes: row.get(19)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(20)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(20, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
+            })
+        }).map_err(|e| e.to_string())?;
+
+        let mut records = Vec::new();
+        for row_result in rows {
+            records.push(row_result.map_err(|e| e.to_string())?);
+        }
+        Ok(records)
+    }
+
+    // Yearly Income Entry operations
+    pub fn get_yearly_entries(&self) -> Result<Vec<YearlyIncomeEntry>, String> {
+        let mut stmt = self.conn
+            .prepare(
+                "SELECT id, position_id, financial_year, gross_income, tax_withheld,
+                        reportable_super, reportable_fringe_benefits, source, notes, created_at
+                 FROM yearly_income_entries
+                 ORDER BY financial_year DESC"
+            )
+            .map_err(|e| e.to_string())?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(YearlyIncomeEntry {
+                id: Some(row.get(0)?),
+                position_id: row.get(1)?,
+                financial_year: row.get(2)?,
+                gross_income: row.get(3)?,
+                tax_withheld: row.get(4)?,
+                reportable_super: row.get(5)?,
+                reportable_fringe_benefits: row.get(6)?,
+                source: serde_json::from_str(&row.get::<_, String>(7)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::new(e)))?,
+                notes: row.get(8)?,
+                created_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(9)?)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(9, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&Utc),
+            })
+        }).map_err(|e| e.to_string())?;
+
+        let mut entries = Vec::new();
+        for row_result in rows {
+            entries.push(row_result.map_err(|e| e.to_string())?);
+        }
+        Ok(entries)
+    }
+
+    pub fn save_yearly_entry(&self, entry: YearlyIncomeEntry) -> SqlResult<i64> {
+        let now = Utc::now().to_rfc3339();
+        
+        if let Some(id) = entry.id {
+            // Update existing
+            self.conn.execute(
+                "UPDATE yearly_income_entries SET
+                    position_id = ?1, financial_year = ?2, gross_income = ?3,
+                    tax_withheld = ?4, reportable_super = ?5, reportable_fringe_benefits = ?6,
+                    source = ?7, notes = ?8
+                 WHERE id = ?9",
+                params![
+                    entry.position_id,
+                    entry.financial_year,
+                    entry.gross_income,
+                    entry.tax_withheld,
+                    entry.reportable_super,
+                    entry.reportable_fringe_benefits,
+                    to_json(&entry.source)?,
+                    entry.notes,
+                    id
+                ],
+            )?;
+            Ok(id)
+        } else {
+            // Insert new
+            self.conn.execute(
+                "INSERT INTO yearly_income_entries (
+                    position_id, financial_year, gross_income, tax_withheld,
+                    reportable_super, reportable_fringe_benefits, source, notes, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    entry.position_id,
+                    entry.financial_year,
+                    entry.gross_income,
+                    entry.tax_withheld,
+                    entry.reportable_super,
+                    entry.reportable_fringe_benefits,
+                    to_json(&entry.source)?,
+                    entry.notes,
+                    now
+                ],
+            )?;
+            Ok(self.conn.last_insert_rowid())
+        }
+    }
+
+    pub fn delete_yearly_entry(&self, id: i64) -> SqlResult<()> {
+        self.conn.execute("DELETE FROM yearly_income_entries WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    // Clear all data - for data backup/reset functionality
+    pub fn clear_all_data(&mut self) -> SqlResult<()> {
+        self.conn.execute("DELETE FROM yearly_income_entries", [])?;
+        self.conn.execute("DELETE FROM weekly_entries", [])?;
+        self.conn.execute("DELETE FROM compensation_records", [])?;
+        self.conn.execute("DELETE FROM positions", [])?;
+        self.conn.execute("DELETE FROM user_profile", [])?;
+        Ok(())
+    }
 }
+

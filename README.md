@@ -8,7 +8,7 @@ A local-first, high-performance desktop application for career earnings analysis
 - **Overtime-Aware Calculations**: Accurate effective hourly rates including overtime
 - **Australian Market Logic**: Tax brackets, superannuation rates, and local benchmarks
 - **Loyalty Tax Analysis**: Identify missed opportunities from long tenure
-- **ChatGPT Resume Export**: Structured JSON exports for AI-powered resume generation
+- **AI Resume Extract**: Structured JSON exports for AI-powered resume generation
 - **Professional Desktop UI**: Clean, fast interface optimized for Windows
 
 ## Tech Stack

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { invoke } from '../lib/tauri';
 import {
     Dialog,
@@ -32,9 +32,10 @@ import {
     OvertimeFrequency,
     Allowance,
     AllowanceFrequency,
-    WeeklyCompensationEntry
+    WeeklyCompensationEntry,
+    YearlyIncomeEntry
 } from '../types';
-import { getCurrentFinancialYear, getFinancialYearBounds } from '../lib/utils';
+import { getCurrentFinancialYear } from '../lib/utils';
 import { PositionForm } from './forms/PositionForm';
 import { PayslipEntryForm } from './forms/PayslipEntryForm';
 
@@ -52,6 +53,12 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
     const [entryType, setEntryType] = useState<EntryType | null>(null);
     const queryClient = useQueryClient();
 
+    // Data fetching
+    const { data: positions = [] } = useQuery({
+        queryKey: ['positions'],
+        queryFn: () => invoke<Position[]>('get_positions'),
+    });
+
     // Form states
     const [fyYear, setFyYear] = useState(getCurrentFinancialYear());
     const [grossIncome, setGrossIncome] = useState(0);
@@ -66,6 +73,7 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
     // Estimate form state
     const [hourlyRate, setHourlyRate] = useState(0);
     const [weeklyHours, setWeeklyHours] = useState(38);
+    const [selectedPositionId, setSelectedPositionId] = useState<string>('');
 
     const savePositionMutation = useMutation({
         mutationFn: (position: Position) => invoke<number>('save_position', { ...position }),
@@ -86,8 +94,15 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
     const saveWeeklyEntryMutation = useMutation({
         mutationFn: (entry: WeeklyCompensationEntry) => invoke<number>('save_weekly_entry', { entry }),
         onSuccess: () => {
-            // Invalidate weekly entries if we had a query for them, and potentially income summary
             queryClient.invalidateQueries({ queryKey: ['weeklyEntries'] });
+            handleComplete();
+        },
+    });
+
+    const saveYearlyEntryMutation = useMutation({
+        mutationFn: (entry: YearlyIncomeEntry) => invoke<number>('save_yearly_entry', { entry }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['yearlyEntries'] });
             handleComplete();
         },
     });
@@ -109,6 +124,7 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
         setNewAllowanceAmount(0);
         setHourlyRate(0);
         setWeeklyHours(38);
+        setSelectedPositionId('');
     };
 
     const handleClose = () => {
@@ -123,8 +139,13 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
 
     const handleSubmit = () => {
         if (entryType === 'estimate') {
+            if (!selectedPositionId) {
+                alert('Please select a position to link this estimate to.');
+                return;
+            }
+
             const record: CompensationRecord = {
-                position_id: 0,
+                position_id: parseInt(selectedPositionId),
                 entry_type: CompensationEntryType.Fuzzy,
                 pay_type: PayType.Hourly,
                 base_rate: hourlyRate,
@@ -147,32 +168,18 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
             };
             saveCompensationMutation.mutate(record);
         } else if (entryType === 'ato') {
-            const fyBounds = getFinancialYearBounds(fyYear);
-            const record: CompensationRecord = {
-                position_id: 0,
-                entry_type: CompensationEntryType.YearlySummary,
-                pay_type: PayType.Annual,
-                base_rate: grossIncome,
-                standard_weekly_hours: 38,
-                overtime: {
-                    frequency: OvertimeFrequency.None,
-                    rate_multiplier: 1.5,
-                    average_hours_per_week: 0,
-                },
-                allowances: allowances,
-                bonuses: [],
-                super_contributions: {
-                    contribution_rate: 11.5,
-                    additional_contributions: superAmount,
-                    salary_sacrifice: 0,
-                },
+            // ATO Summaries are now saved as YearlyIncomeEntry, ensuring strict schema compliance
+            const entry: YearlyIncomeEntry = {
+                financial_year: fyYear,
+                gross_income: grossIncome,
                 tax_withheld: taxWithheld,
-                effective_date: fyBounds?.start || new Date(),
-                confidence_score: 1.0,
+                reportable_super: superAmount,
+                reportable_fringe_benefits: 0,
+                source: 'ATO',
                 notes: `${fyYear} ATO Payment Summary`,
                 created_at: new Date(),
             };
-            saveCompensationMutation.mutate(record);
+            saveYearlyEntryMutation.mutate(entry);
         }
     };
 
@@ -391,6 +398,24 @@ export function AddIncomeWizard({ open, onOpenChange, onComplete }: AddIncomeWiz
                         {/* Estimate Form */}
                         {entryType === 'estimate' && (
                             <>
+                                <div>
+                                    <Label>Linked Position</Label>
+                                    <Select value={selectedPositionId} onValueChange={setSelectedPositionId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a position..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {positions.map((pos) => (
+                                                <SelectItem key={pos.id} value={String(pos.id)}>
+                                                    {pos.job_title} at {pos.employer_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        All compensation records must be linked to a position.
+                                    </p>
+                                </div>
                                 <div>
                                     <Label>Hourly Rate (before tax)</Label>
                                     <CurrencyInput

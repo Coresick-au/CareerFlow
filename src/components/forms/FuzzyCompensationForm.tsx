@@ -119,8 +119,8 @@ export function FuzzyCompensationForm({ initialData, onSave, onCancel, onDelete,
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Confidence Indicator */}
-      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-        <span className="text-sm font-medium text-yellow-800">Estimate Confidence</span>
+      <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+        <span className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Estimate Confidence</span>
         <Badge variant={confidenceScore >= 80 ? 'default' : confidenceScore >= 60 ? 'secondary' : 'destructive'}>
           {confidenceScore}%
         </Badge>
@@ -148,7 +148,7 @@ export function FuzzyCompensationForm({ initialData, onSave, onCancel, onDelete,
           <div>
             <Label>
               Base {payType === PayType.Salary ? 'Salary' : 'Hourly Rate'}
-              <span className="text-sm text-gray-500 ml-2">
+              <span className="text-sm text-muted-foreground ml-2">
                 (Use round numbers for quick estimate)
               </span>
             </Label>
@@ -161,7 +161,7 @@ export function FuzzyCompensationForm({ initialData, onSave, onCancel, onDelete,
                 step={payType === PayType.Salary ? 5000 : 5}
                 className="w-full"
               />
-              <div className="flex justify-between text-sm text-gray-600 mt-1">
+              <div className="flex justify-between text-sm text-muted-foreground mt-1">
                 <span>{formatCurrency(payType === PayType.Salary ? 50000 : 25)}</span>
                 <span className="font-medium">{formatCurrency(baseRate)}</span>
                 <span>{formatCurrency(payType === PayType.Salary ? 300000 : 150)}</span>
@@ -281,7 +281,7 @@ export function FuzzyCompensationForm({ initialData, onSave, onCancel, onDelete,
       </div>
 
       {/* Summary */}
-      <Card className="bg-blue-50">
+      <Card className="bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/20">
         <CardHeader>
           <CardTitle className="text-lg">Estimated Annual Earnings</CardTitle>
         </CardHeader>
@@ -303,7 +303,7 @@ export function FuzzyCompensationForm({ initialData, onSave, onCancel, onDelete,
               <span>Total Annual:</span>
               <span>{formatCurrency(earnings.total)}</span>
             </div>
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-sm text-muted-foreground">
               <span>With Super ({superRate}%):</span>
               <span>{formatCurrency(earnings.total * (1 + superRate / 100))}</span>
             </div>

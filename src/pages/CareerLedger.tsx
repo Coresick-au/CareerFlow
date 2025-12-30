@@ -68,23 +68,26 @@ export function CareerLedger() {
         queryFn: () => invoke<WeeklyCompensationEntry[]>('get_weekly_entries'),
     });
 
-    const yearlyEntries: YearlyIncomeEntry[] = []; // TODO: Implement yearly entries backend
+    const { data: yearlyEntries = [] } = useQuery({
+        queryKey: ['yearlyEntries'],
+        queryFn: () => invoke<YearlyIncomeEntry[]>('get_yearly_entries'),
+    });
 
     // Combine all entries into a single timeline, sorted by date
     const allTimelineEntries: TimelineEntry[] = [
         ...positions.map(p => ({
             type: 'position' as const,
-            date: p.start_date,
+            date: new Date(p.start_date),
             data: p
         })),
         ...compensationRecords.map(c => ({
             type: 'compensation' as const,
-            date: c.effective_date,
+            date: new Date(c.effective_date),
             data: c
         })),
         ...weeklyEntries.map(w => ({
             type: 'weekly' as const,
-            date: w.week_ending,
+            date: new Date(w.week_ending),
             data: w
         })),
         ...yearlyEntries.map(y => ({

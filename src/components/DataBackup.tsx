@@ -131,13 +131,13 @@ export function DataBackup() {
         </div>
 
         {message && (
-          <Alert className={message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+          <Alert className={message.type === 'error' ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20' : 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20'}>
             {message.type === 'error' ? (
-              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
             ) : (
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
             )}
-            <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
+            <AlertDescription className={message.type === 'error' ? 'text-red-800 dark:text-red-200' : 'text-green-800 dark:text-green-200'}>
               {message.text}
             </AlertDescription>
           </Alert>

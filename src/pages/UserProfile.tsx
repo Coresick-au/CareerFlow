@@ -14,6 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 function formatDateForInput(date: Date | string | undefined | null): string {
   if (!date) return '';
   try {
+    // If it's already a YYYY-MM-DD string, return as-is
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return '';
     return d.toISOString().split('T')[0];
@@ -167,8 +171,15 @@ export function UserProfile() {
                   type="date"
                   value={formatDateForInput(safeProfile.date_of_birth)}
                   onChange={(e) => {
-                    const date = parseDateFromInput(e.target.value);
-                    if (date) handleInputChange('date_of_birth', date);
+                    // Always update with the raw value - let the input handle partial dates
+                    const value = e.target.value;
+                    if (value) {
+                      // Only parse to Date if the value looks complete
+                      const date = parseDateFromInput(value);
+                      handleInputChange('date_of_birth', date || value);
+                    } else {
+                      handleInputChange('date_of_birth', null);
+                    }
                   }}
                   required
                 />
